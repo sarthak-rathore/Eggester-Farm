@@ -59,7 +59,9 @@ function Admin(d) {
   const crud = (set) => ({ onSave: (r) => set((rs) => (rs.some((x) => x.id === r.id) ? rs.map((x) => (x.id === r.id ? r : x)) : [r, ...rs])), onDelete: (id) => set((rs) => rs.filter((x) => x.id !== id)) });
   return (
     <div className="admin">
-      <header className="nav dark"><span className="logo">🥚 {FARM.name} · Admin</span><a href="#/" className="btn sm ghost light">View shop</a></header>
+      <header className="nav dark"><span className="logo">🥚 {FARM.name} · Admin</span><div className="row"><a href="#/" className="btn sm ghost light">View shop</a>
+        <button className="btn sm ghost light" aria-label="Log out" onClick={() => { sessionStorage.removeItem("kf_ok"); setOk(false); setTry(""); }}>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" style={{ verticalAlign: "-3px", marginRight: 6 }}><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" /><path d="M16 17l5-5-5-5" /><path d="M21 12H9" /></svg>Log out</button></div></header>
       <div className="tabs">{tabs.map((t) => <button key={t} className={t === tab ? "on" : ""} onClick={() => setTab(t)}>{t}{t === "Orders" && pending ? <i>{pending}</i> : null}{t === "Support" && openT ? <i>{openT}</i> : null}</button>)}</div>
       <main className="wrap">
         {tab === "Dashboard" && <Suspense fallback={<p className="muted">Loading charts…</p>}><Dash {...d} /></Suspense>}

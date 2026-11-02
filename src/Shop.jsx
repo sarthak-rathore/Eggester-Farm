@@ -28,6 +28,7 @@ export function invoice(o) {
 export default function Shop({ products, orders, setOrders, setProducts }) {
   const [cart, setCart] = useLS("kf_cart", {});
   const [users, setUsers] = useLS("kf_users", []);
+  const [pin] = useLS("kf_pin", FARM.pin);
   const [sid, setSid] = useLS("kf_session", null);
   const user = users.find((u) => u.id === sid && !u.blocked) || null;
   const [view, setView] = useState(null);
@@ -90,11 +91,14 @@ export default function Shop({ products, orders, setOrders, setProducts }) {
     e.preventDefault(); setErr("");
     const email = af.email.trim().toLowerCase();
     if (mode === "signup") {
-      if (users.some((u) => u.email === email)) return setErr("An account with this email exists. Log in instead.");
+      if (email === FARM.adminEmail.toLowerCase() || users.some((u) => u.email === email)) return setErr("An account with this email exists. Log in instead.");
       if (af.password.length < 6) return setErr("Use a password of at least 6 characters.");
       const s = salt(); const u = { id: uid(), name: af.name, phone: af.phone, email, salt: s, hash: await hash(af.password, s), address: "", joined: today() };
       setUsers((us) => [...us, u]); setSid(u.id);
     } else {
+      if (email === FARM.adminEmail.toLowerCase() && af.password === pin) {
+        sessionStorage.setItem("kf_ok", "1"); setAf({ name: "", phone: "", email: "", password: "" }); setView(null); location.hash = "#/admin"; return;
+      }
       const u = users.find((x) => x.email === email);
       if (!u || u.hash !== (await hash(af.password, u.salt))) return setErr("Email or password is incorrect.");
       if (u.blocked) return setErr("This account has been blocked. Please contact the farm.");
@@ -220,6 +224,8 @@ export default function Shop({ products, orders, setOrders, setProducts }) {
             <label>Email<input required type="email" value={af.email} onChange={(e) => setAf({ ...af, email: e.target.value })} /></label>
             <label>Password<input required type="password" value={af.password} onChange={(e) => setAf({ ...af, password: e.target.value })} /></label>
             {mode === "login" && FARM.demo && <p className="hint">Demo customer: <b>demo@customer.com</b> / <b>Demo@123</b> <button type="button" className="link" onClick={() => setAf({ ...af, email: "demo@customer.com", password: "Demo@123" })}>Fill in</button></p>}
+            {mode === "login" && FARM.demo && <p className="hint">Demo owner: <b>{FARM.adminEmail}</b> / <b>{pin}</b> <button type="button" className="link" onClick={() => setAf({ ...af, email: FARM.adminEmail, password: pin })}>Fill in</button></p>}
+            {mode === "login" && !FARM.demo && <p className="muted">Farm owner? Log in here with your owner email and password to open the dashboard.</p>}
             {err && <p className="out" role="alert">{err}</p>}
             <button className="btn">{mode === "login" ? "Log in" : "Create account"}</button>
             <button type="button" className="link" onClick={() => { setMode(mode === "login" ? "signup" : "login"); setErr(""); }}>{mode === "login" ? "New here? Create an account" : "Already have an account? Log in"}</button>

@@ -119,3 +119,13 @@ button,input,select,textarea{color:var(--ink)}
 .applied{display:flex;justify-content:space-between;align-items:center;background:#DDF3E5;color:#14663A;border-radius:10px;padding:10px 14px}
 .coupon .chips{margin:0}.coupon .chips button{border-style:dashed;font-family:monospace}
 s.muted{margin-right:4px}
+
+/* egg farm */
+.tiers{list-style:none;margin:8px 0;padding:0;font-size:.9rem}.tiers li{display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px dashed var(--line)}
+.sm{font-size:.85rem;margin:.2em 0 .8em}
+.qty input{width:84px;text-align:center;padding:.5em;font-weight:700}.chipbtn{width:auto!important;border-radius:99px!important;padding:0 .9em;font:700 .85rem Figtree}
+.sh{margin:28px 0 12px;font-size:1.25rem;border-left:5px solid var(--yolk);padding-left:10px}
+.alerts{display:grid;gap:8px;margin-bottom:16px}.alert{padding:11px 14px;border-radius:10px;font-weight:600;font-size:.93rem}
+.alert.bad{background:#FDE0E0;color:#A02025}.alert.warn{background:#FFF1C2;color:#7A5200}.alert.info{background:#DCEBFF;color:#1B4F9C}
+.kpi small{display:block;margin-top:2px;font-size:.78rem}.chart h3{margin-bottom:.2em}.chart .muted.sm{margin:0 0 8px}
+.admin .tabs{padding-inline:3vw}

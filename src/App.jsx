@@ -1,13 +1,22 @@
 import React, { useState, useEffect, lazy, Suspense } from "react";
-const Dash = lazy(() => import("./Dash.jsx"));
-const Account = lazy(() => import("./Account.jsx"));
-const AdminOffers = lazy(() => import("./AdminOffers.jsx"));
-const AdminAccount = lazy(() => import("./AdminAccount.jsx"));
 import { FARM, SEED_PRODUCTS } from "./config.js";
-import { useLS, uid, today, inr, demo } from "./store.js";
+import { useLS, uid, today, inr } from "./store.js";
+import { seedDemo, upsert } from "./farm.js";
 import Shop from "./Shop.jsx";
 import Crud from "./Crud.jsx";
 import { hash, salt } from "./auth.js";
+
+const named = (f, n) => lazy(() => f().then((m) => ({ default: m[n] })));
+const Dash = lazy(() => import("./Dash.jsx"));
+const Account = lazy(() => import("./Account.jsx"));
+const AdminAccount = lazy(() => import("./AdminAccount.jsx"));
+const AdminOffers = lazy(() => import("./AdminOffers.jsx"));
+const Flocks = named(() => import("./AdminFarm.jsx"), "Flocks");
+const DailyLog = named(() => import("./AdminFarm.jsx"), "DailyLog");
+const Feed = named(() => import("./AdminFarm.jsx"), "Feed");
+const Eggs = named(() => import("./AdminFarm.jsx"), "Eggs");
+const Money = named(() => import("./AdminFarm.jsx"), "Money");
+const Lz = ({ children }) => <Suspense fallback={<p className="muted">Loading…</p>}>{children}</Suspense>;
 
 const useHash = () => {
   const [h, setH] = useState(location.hash);
@@ -20,17 +29,13 @@ export default function App() {
   const [products, setProducts] = useLS("kf_products", SEED_PRODUCTS);
   const [orders, setOrders] = useLS("kf_orders", []);
   const [txns, setTxns] = useLS("kf_txns", []);
-  const [prod, setProd] = useLS("kf_prod", []);
-  useEffect(() => {
-    if (!localStorage.getItem("kf_seeded")) { const d = demo(); setTxns(d.t); setProd(d.p); localStorage.setItem("kf_seeded", "1"); }
-  }, []);
-  const data = { products, setProducts, orders, setOrders, txns, setTxns, prod, setProd };
+  useEffect(() => { if (!localStorage.getItem("kf_seeded")) { seedDemo(FARM.demo); localStorage.setItem("kf_seeded", "1"); } }, []);
+  const data = { products, setProducts, orders, setOrders, txns, setTxns };
   if (hash.startsWith("#/admin")) return <Admin {...data} />;
   if (hash.startsWith("#/account")) return <Suspense fallback={<p className="muted" style={{ padding: 24 }}>Loading your account…</p>}><Account {...data} /></Suspense>;
   return <Shop {...data} />;
 }
 
-/* ---------- ADMIN ---------- */
 function Admin(d) {
   const [pin] = useLS("kf_pin", FARM.pin);
   const [ok, setOk] = useState(sessionStorage.getItem("kf_ok") === "1");
@@ -48,15 +53,8 @@ function Admin(d) {
         <button className="btn">Log in</button><a href="#/">Back to the shop</a></form></div>
     );
   const pending = d.orders.filter((o) => o.status === "Pending").length;
-  const tabs = ["Dashboard", "Orders", "Customers", "Money", "Products", "Offers", "Production", "Support", "Account"];
   const openT = tickets.filter((t) => t.status === "Open").length;
-  const saveOrder = (o) => {
-    d.setOrders((os) => (os.some((x) => x.id === o.id) ? os.map((x) => (x.id === o.id ? o : x)) : [o, ...os]));
-    const prev = d.orders.find((x) => x.id === o.id);
-    if (o.status === "Cancelled" && prev && prev.status !== "Cancelled") d.setProducts((ps) => ps.map((p) => { const i = (o.items || []).find((i) => i.id === p.id); return i ? { ...p, stock: +p.stock + i.qty } : p; }));
-    if (o.status === "Delivered") d.setTxns((ts) => (ts.some((t) => t.orderId === o.id) ? ts : [{ id: uid(), orderId: o.id, date: today(), type: "revenue", category: "Online orders", amount: +o.total, note: `Order ${o.id}` }, ...ts]));
-  };
-  const crud = (set) => ({ onSave: (r) => set((rs) => (rs.some((x) => x.id === r.id) ? rs.map((x) => (x.id === r.id ? r : x)) : [r, ...rs])), onDelete: (id) => set((rs) => rs.filter((x) => x.id !== id)) });
+  const tabs = ["Dashboard", "Flocks", "Daily log", "Feed", "Egg stock", "Orders", "Customers", "Money", "Products", "Offers", "Support", "Account"];
   return (
     <div className="admin">
       <header className="nav dark"><span className="logo">🥚 {FARM.name} · Admin</span><div className="row"><a href="#/" className="btn sm ghost light">View shop</a>
@@ -64,20 +62,24 @@ function Admin(d) {
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" style={{ verticalAlign: "-3px", marginRight: 6 }}><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" /><path d="M16 17l5-5-5-5" /><path d="M21 12H9" /></svg>Log out</button></div></header>
       <div className="tabs">{tabs.map((t) => <button key={t} className={t === tab ? "on" : ""} onClick={() => setTab(t)}>{t}{t === "Orders" && pending ? <i>{pending}</i> : null}{t === "Support" && openT ? <i>{openT}</i> : null}</button>)}</div>
       <main className="wrap">
-        {tab === "Dashboard" && <Suspense fallback={<p className="muted">Loading charts…</p>}><Dash {...d} /></Suspense>}
-        {tab === "Orders" && <Crud title="Orders" rows={d.orders} blank={{ date: today(), status: "Pending", items: [], total: 0, payMethod: "COD", payStatus: "Unpaid" }} onSave={saveOrder} onDelete={crud(d.setOrders).onDelete}
-          fields={[{ k: "date", label: "Date", type: "date" }, { k: "name", label: "Customer" }, { k: "phone", label: "Phone" }, { k: "address", label: "Address" }, { k: "items", label: "Items", noForm: true, fmt: (v) => (v || []).map((i) => `${i.name} × ${i.qty}`).join(", ") }, { k: "total", label: "Total", type: "number", fmt: inr }, { k: "discount", label: "Discount", type: "number", req: false, fmt: (v) => (+v ? "−" + inr(v) : "") }, { k: "payMethod", label: "Payment", opts: ["COD", "UPI", "Razorpay"] }, { k: "payStatus", label: "Paid?", opts: ["Unpaid", "Paid", "Refunded"] }, { k: "status", label: "Status", opts: ["Pending", "Confirmed", "Out for delivery", "Delivered", "Cancelled"] }]} />}
+        {tab === "Dashboard" && <Lz><Dash {...d} /></Lz>}
+        {tab === "Flocks" && <Lz><Flocks {...d} /></Lz>}
+        {tab === "Daily log" && <Lz><DailyLog {...d} /></Lz>}
+        {tab === "Feed" && <Lz><Feed {...d} /></Lz>}
+        {tab === "Egg stock" && <Lz><Eggs {...d} /></Lz>}
+        {tab === "Orders" && <Crud title="Wholesale orders" rows={d.orders} blank={{ date: today(), status: "Pending", items: [], total: 0, payMethod: "COD", payStatus: "Unpaid" }} {...upsert(d.setOrders)}
+          fields={[{ k: "date", label: "Date", type: "date" }, { k: "name", label: "Customer" }, { k: "phone", label: "Phone" }, { k: "address", label: "Address" }, { k: "items", label: "Items", noForm: true, fmt: (v) => (v || []).map((i) => `${i.name} × ${i.qty}`).join(", ") },
+            { k: "total", label: "Total", type: "number", fmt: inr }, { k: "discount", label: "Discount", type: "number", req: false, fmt: (v) => (+v ? "−" + inr(v) : "") }, { k: "payMethod", label: "Payment", opts: ["COD", "UPI", "Razorpay"] }, { k: "payStatus", label: "Paid?", opts: ["Unpaid", "Paid", "Refunded"] },
+            { k: "status", label: "Status", opts: ["Pending", "Confirmed", "Out for delivery", "Delivered", "Cancelled"] }]} />}
         {tab === "Customers" && <Customers orders={d.orders} />}
-        {tab === "Money" && <Crud title="Revenue, expenses and losses" rows={[...d.txns].sort((a, b) => (a.date < b.date ? 1 : -1))} blank={{ date: today(), type: "revenue", category: "", amount: "" }} {...crud(d.setTxns)}
-          fields={[{ k: "date", label: "Date", type: "date" }, { k: "type", label: "Type", opts: ["revenue", "expense", "loss"] }, { k: "category", label: "Category" }, { k: "amount", label: "Amount (₹)", type: "number", fmt: inr }, { k: "note", label: "Note", req: false }]} />}
-        {tab === "Products" && <Crud title="Products and stock" rows={d.products} blank={{ cat: "Eggs", emoji: "🥚", unit: "dozen", price: "", mrp: "", gst: "", stock: 0, desc: "", active: "Yes" }} {...crud(d.setProducts)}
-          fields={[{ k: "cat", label: "Category", opts: ["Eggs", "Chicken", "Farm"] }, { k: "emoji", label: "Icon" }, { k: "name", label: "Name" }, { k: "unit", label: "Unit" }, { k: "price", label: "Price (₹)", type: "number", fmt: inr }, { k: "mrp", label: "MRP / old price (₹)", type: "number", req: false, fmt: (v) => (v ? inr(v) : "") }, { k: "gst", label: "GST % (blank = shop default)", type: "number", req: false }, { k: "stock", label: "In stock", type: "number", fmt: (v) => (+v < 10 ? `${v} (low)` : v) }, { k: "desc", label: "Description", req: false }, { k: "active", label: "Show in shop", opts: ["Yes", "No"] }]} />}
-        {tab === "Production" && <Crud title="Daily egg production" rows={[...d.prod].sort((a, b) => (a.date < b.date ? 1 : -1))} blank={{ date: today(), eggs: "", broken: 0, birds: "" }} {...crud(d.setProd)}
-          fields={[{ k: "date", label: "Date", type: "date" }, { k: "eggs", label: "Eggs collected", type: "number" }, { k: "broken", label: "Broken", type: "number" }, { k: "birds", label: "Birds in flock", type: "number" }]} />}
-        {tab === "Support" && <Crud title="Customer complaints and help requests" noAdd rows={tickets} blank={{}} onSave={(t) => setTickets((ts) => ts.map((x) => (x.id === t.id ? t : x)))} onDelete={(id) => setTickets((ts) => ts.filter((x) => x.id !== id))}
+        {tab === "Money" && <Lz><Money {...d} /></Lz>}
+        {tab === "Products" && <Crud title="Egg products and bulk prices" rows={d.products} blank={{ emoji: "🥚", unit: "tray", eggs: 30, price: "", mrp: "", moq: 10, tiers: "", gst: "", desc: "", active: "Yes" }} {...upsert(d.setProducts)}
+          fields={[{ k: "emoji", label: "Icon" }, { k: "name", label: "Name" }, { k: "unit", label: "Unit (tray)" }, { k: "eggs", label: "Eggs per unit", type: "number" }, { k: "price", label: "Price per tray (₹)", type: "number", fmt: inr }, { k: "mrp", label: "MRP / old price (₹)", type: "number", req: false, fmt: (v) => (v ? inr(v) : "") },
+            { k: "moq", label: "Minimum trays per order", type: "number" }, { k: "tiers", label: "Bulk prices (trays:price, e.g. 50:205,100:200)", req: false }, { k: "gst", label: "GST % (blank = shop default)", type: "number", req: false }, { k: "desc", label: "Description", req: false }, { k: "active", label: "Show in shop", opts: ["Yes", "No"] }]} />}
+        {tab === "Offers" && <Lz><AdminOffers {...d} /></Lz>}
+        {tab === "Support" && <Crud title="Customer complaints and help requests" noAdd rows={tickets} blank={{}} {...upsert(setTickets)}
           fields={[{ k: "date", label: "Date", noForm: true }, { k: "name", label: "Customer", noForm: true }, { k: "phone", label: "Phone", noForm: true }, { k: "type", label: "Topic", noForm: true }, { k: "orderId", label: "Order", noForm: true }, { k: "message", label: "Message", noForm: true }, { k: "status", label: "Status", opts: ["Open", "In progress", "Resolved"] }, { k: "reply", label: "Your reply to the customer", req: false }]} />}
-        {tab === "Offers" && <Suspense fallback={<p className="muted">Loading…</p>}><AdminOffers {...d} /></Suspense>}
-        {tab === "Account" && <Suspense fallback={<p className="muted">Loading…</p>}><AdminAccount {...d} /></Suspense>}
+        {tab === "Account" && <Lz><AdminAccount {...d} /></Lz>}
       </main>
     </div>
   );

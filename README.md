@@ -22,8 +22,14 @@ Data lives in each browser. Accounts, orders and payments are stored locally, so
 see customers' orders on another device (WhatsApp carries the order). Razorpay payments are not
 verified server-side yet. Passwords are hashed in the browser: fine for a demo, not for production.
 
-## Owner controls (Admin)
-Orders, Customers (block, reset password, delete), Money, Products (price, MRP, GST %, show/hide),
-Offers (GST and delivery, coupons and automatic offers, extra charges, payment options),
-Support (customer complaints and replies), Account (farm details, shop headline and announcement,
-password, backup). Every table can be downloaded as CSV.
+## What the owner manages (Admin)
+- Dashboard: flock, feed and nutrition, eggs and stock, money, orders and buyers, with graphs by day, month or year and a filter per flock
+- Flocks: each batch of chicks (count, cost, supplier), with mortality and production per batch
+- Daily log: feed given, birds died, eggs collected and broken, per flock per day
+- Feed: stock in kg and days left, purchases, feed types with protein and energy
+- Egg stock: trays produced, sold and in stock (derived), plus manual adjustments
+- Orders, Customers, Money (automatic ledger plus other costs), Products (bulk tray prices), Offers, Support, Account
+Every table can be downloaded as CSV.
+
+## Customers
+Wholesale only: egg trays of 30, minimum order and bulk price tiers per product, stock taken live from the egg stock.

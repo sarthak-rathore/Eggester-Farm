@@ -2,9 +2,9 @@ import { useLS, inr } from "./store.js";
 import { FARM } from "./config.js";
 
 export const SEED_COUPONS = [
-  { id: "c1", code: "WELCOME10", label: "10% off your first order (up to ₹100)", type: "percent", value: 10, minOrder: 300, maxDiscount: 100, auto: "No", visible: "Yes", firstOrderOnly: "Yes", limit: 0, expires: "", active: "Yes" },
-  { id: "c2", code: "FREEDEL", label: "Free delivery on orders above ₹300", type: "freeship", value: 0, minOrder: 300, maxDiscount: 0, auto: "No", visible: "Yes", firstOrderOnly: "No", limit: 0, expires: "", active: "Yes" },
-  { id: "c3", code: "BULK50", label: "₹50 off orders above ₹1000", type: "flat", value: 50, minOrder: 1000, maxDiscount: 0, auto: "Yes", visible: "No", firstOrderOnly: "No", limit: 0, expires: "", active: "Yes" },
+  { id: "c1", code: "WELCOME5", label: "5% off your first bulk order (up to ₹500)", type: "percent", value: 5, minOrder: 2000, maxDiscount: 500, auto: "No", visible: "Yes", firstOrderOnly: "Yes", limit: 0, expires: "", active: "Yes" },
+  { id: "c2", code: "FREEDEL", label: "Free delivery on orders above ₹3000", type: "freeship", value: 0, minOrder: 3000, maxDiscount: 0, auto: "No", visible: "Yes", firstOrderOnly: "No", limit: 0, expires: "", active: "Yes" },
+  { id: "c3", code: "BULK100", label: "₹100 off orders above ₹5000", type: "flat", value: 100, minOrder: 5000, maxDiscount: 0, auto: "Yes", visible: "No", firstOrderOnly: "No", limit: 0, expires: "", active: "Yes" },
 ];
 export const SEED_CHARGES = [{ id: "x1", label: "Packaging", type: "flat", value: 10, active: "Yes" }];
 export const defaultPricing = () => ({ gst: 0, gstMode: "inclusive", gstin: "", minOrder: 0, deliveryFee: FARM.deliveryFee, freeAbove: FARM.freeAbove, cod: true, upi: true, card: true });
@@ -37,6 +37,7 @@ export function computeBill({ lines, products, pr, coupons, charges, code, user,
     else offer = c;
   }
   if (!offer) offer = coupons.filter((c) => c.auto === "Yes" && valid(c)).sort((a, b) => amt(b) - amt(a))[0] || null;
+  const moqIssue = lines.find((l) => l.moq && l.qty < l.moq) || null;
   const discount = offer ? amt(offer) : 0;
   const freeShip = offer?.type === "freeship";
   const after = r2(sub - discount);
@@ -52,7 +53,7 @@ export function computeBill({ lines, products, pr, coupons, charges, code, user,
   const delivery = !sub || freeShip || after >= freeAbove ? 0 : fee;
   const extras = sub ? charges.filter((c) => c.active !== "No").map((c) => ({ label: c.label, amount: r2(c.type === "percent" ? (after * +c.value) / 100 : +c.value || 0) })).filter((x) => x.amount > 0) : [];
   const total = r2(after + (pr.gstMode === "exclusive" ? gst : 0) + delivery + extras.reduce((a, x) => a + x.amount, 0));
-  return { sub, discount, offer, note, gst, gstMode: pr.gstMode, delivery, extras, total, freeShip,
+  return { sub, discount, offer, note, moqIssue, gst, gstMode: pr.gstMode, delivery, extras, total, freeShip,
     toFree: sub && !freeShip && after < freeAbove ? r2(freeAbove - after) : 0,
     belowMin: sub > 0 && sub < (+pr.minOrder || 0), minOrder: +pr.minOrder || 0,
     saved: r2(discount + (freeShip && after < freeAbove ? fee : 0)) };

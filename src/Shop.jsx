@@ -4,6 +4,7 @@ import { useLS, uid, today, inr } from "./store.js";
 import { hash, salt } from "./auth.js";
 import { usePricing, computeBill } from "./pricing.js";
 import Bill from "./Bill.jsx";
+import { useStock, makeLines, stepQty, tiers, TRAY } from "./farm.js";
 
 const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 export const STEPS = ["Pending", "Confirmed", "Out for delivery", "Delivered"];
@@ -46,8 +47,8 @@ export default function Shop({ products, orders, setOrders, setProducts }) {
       const sl = salt();
       const u = { id: "demo-user", name: "Demo Customer", phone: "9876500000", email: "demo@customer.com", salt: sl, hash: await hash("Demo@123", sl), address: "12 Market Road, Muzaffarpur, Bihar", addresses: [{ id: "a1", label: "Home", name: "Demo Customer", phone: "9876500000", line: "12 Market Road, Muzaffarpur, Bihar", pin: "842001", def: true }], joined: today() };
       setUsers((us) => (us.some((x) => x.email === u.email) ? us : [...us, u]));
-      const items = [{ id: "p1", name: "Farm eggs, tray of 30", unit: "tray", price: 210, qty: 2 }];
-      const base = { userId: u.id, name: u.name, phone: u.phone, address: u.address, note: "", items, subtotal: 420, delivery: 40, total: 460, payMethod: "COD" };
+      const items = [{ id: "p1", name: "Farm eggs, standard tray (30)", unit: "tray", price: 210, qty: 20, eggs: 30 }];
+      const base = { userId: u.id, name: u.name, phone: u.phone, address: u.address, note: "", items, subtotal: 4200, delivery: 150, total: 4360, payMethod: "COD", charges: [{ label: "Packaging", amount: 10 }], discount: 0, coupon: "", gst: 0 };
       const ago = new Date(Date.now() - 5 * 864e5).toISOString().slice(0, 10);
       setOrders((os) => (os.some((o) => o.id === "DEMO01") ? os : [{ ...base, id: "DEMO02", date: today(), payStatus: "Unpaid", payRef: "", status: "Confirmed" }, { ...base, id: "DEMO01", date: ago, payStatus: "Paid", payRef: "", status: "Delivered" }, ...os]));
     })().catch(() => {}).finally(() => { seeding.current = false; });
@@ -56,25 +57,25 @@ export default function Shop({ products, orders, setOrders, setProducts }) {
 
   const wl = (user && wish[user.id]) || [];
   const toggleWish = (id) => { if (!user) return setView("auth"); setWish((w) => ({ ...w, [user.id]: wl.includes(id) ? wl.filter((i) => i !== id) : [...wl, id] })); };
-  const lines = products.filter((p) => cart[p.id] > 0 && p.active !== "No").map((p) => ({ id: p.id, name: p.name, unit: p.unit, price: +p.price, qty: Math.min(cart[p.id], p.stock) })).filter((l) => l.qty > 0);
+  const S = useStock(orders);
+  const lines = makeLines(products, cart, S.stockOf);
   const P = usePricing();
   const bill = computeBill({ lines, products, ...P, user, orders });
   const total = bill.total, count = lines.reduce((x, l) => x + l.qty, 0);
   const methods = [P.pr.cod && "COD", FARM.upiId && P.pr.upi && "UPI", FARM.razorpayKey && P.pr.card && "Razorpay"].filter(Boolean);
   useEffect(() => { if (methods.length && !methods.includes(pay)) setPay(methods[0]); }, [methods.join()]);
-  const cats = ["All", ...new Set(products.filter((p) => p.active !== "No").map((p) => p.cat).filter(Boolean))];
-  const shown = products.filter((p) => p.active !== "No" && (cat === "All" || p.cat === cat) && p.name.toLowerCase().includes(q.toLowerCase()));
-  const setQty = (p, d) => setCart((c) => ({ ...c, [p.id]: Math.max(0, Math.min(p.stock, (c[p.id] || 0) + d)) }));
+  const shown = products.filter((p) => p.active !== "No");
+  const setQty = (p, d) => setCart((c) => ({ ...c, [p.id]: stepQty(p, c[p.id] || 0, d, S.stockOf(p)) }));
+  const setN = (p, n) => setCart((c) => ({ ...c, [p.id]: Math.max(0, Math.min(S.stockOf(p), Math.round(+n) || 0)) }));
   const move = (e) => { const r = e.currentTarget.getBoundingClientRect(); e.currentTarget.style.setProperty("--mx", (e.clientX - r.left) / r.width - 0.5); e.currentTarget.style.setProperty("--my", (e.clientY - r.top) / r.height - 0.5); };
-  const restock = (o) => setProducts((ps) => ps.map((p) => { const i = (o.items || []).find((i) => i.id === p.id); return i ? { ...p, stock: +p.stock + i.qty } : p; }));
 
   const finalize = (o) => {
     setOrders((os) => [o, ...os]);
-    setProducts((ps) => ps.map((p) => { const i = o.items.find((i) => i.id === p.id); return i ? { ...p, stock: Math.max(0, p.stock - i.qty) } : p; }));
     setCart({}); setDone(o); setView("done"); setBusy(false);
   };
   const place = async (e) => {
     e.preventDefault(); if (!lines.length || busy) return;
+    if (lines.reduce((a, l) => a + l.qty * l.eggs, 0) > S.pool) return alert(`Only ${Math.floor(S.pool / TRAY)} trays are available right now. Please reduce your quantity.`);
     const o = { id: uid().toUpperCase(), date: today(), userId: user?.id || null, name: f.name, phone: f.phone, address: f.address, note: f.note, items: lines, subtotal: bill.sub, discount: bill.discount, coupon: bill.offer?.code || "", gst: bill.gst, gstMode: P.pr.gstMode, delivery: bill.delivery, charges: bill.extras, total, payMethod: pay, payStatus: "Unpaid", payRef: "", status: "Pending" };
     if (pay === "Razorpay") {
       setBusy(true);
@@ -127,46 +128,48 @@ export default function Shop({ products, orders, setOrders, setProducts }) {
           ))}
         </div>
         <div className="hero-copy">
-          <p className="pill">Fresh every morning, East Champaran</p>
+          <p className="pill">Wholesale egg supplier · East Champaran</p>
           <h1>{FARM.headline}</h1>
-          <p className="lead">{FARM.tagline}. Our hens roam, eat grain and lay naturally. You order, we deliver.</p>
-          <div className="row"><a className="btn" href="#products">Shop eggs and chicken</a><a className="btn ghost light" href="#about">See the farm</a></div>
-          <p className="lead small">Delivery {inr(P.pr.deliveryFee)}, free on orders above {inr(P.pr.freeAbove)}.</p>
+          <p className="lead">{FARM.tagline}. Collected by hand every morning, packed in trays of 30 and delivered in bulk.</p>
+          <div className="row"><a className="btn" href="#products">Order eggs in bulk</a><a className="btn ghost light" href="#about">See the farm</a></div>
+          <p className="lead small">{Math.floor(S.pool / TRAY)} trays ready now · Delivery {inr(P.pr.deliveryFee)}, free above {inr(P.pr.freeAbove)}</p>
         </div>
       </section>
 
       <section id="products" className="sec">
-        <div className="bar"><h2>What we sell</h2>
-          <input className="search" type="search" placeholder="Search products" aria-label="Search products" value={q} onChange={(e) => setQ(e.target.value)} /></div>
-        <div className="chips">{cats.map((c) => <button key={c} className={c === cat ? "on" : ""} onClick={() => setCat(c)}>{c}</button>)}</div>
+        <h2>Wholesale egg trays</h2>
+        <p className="muted">Sold by the tray of {TRAY} eggs. Minimum order and bulk prices are shown on each product. Order more, pay less per tray.</p>
         <div className="grid">
-          {shown.map((p) => (
+          {shown.map((p) => { const st = S.stockOf(p), tr = tiers(p), n = cart[p.id] || 0; return (
             <article key={p.id} className="pcard" onPointerMove={tilt} onPointerLeave={untilt}>
-              <button className="heart" aria-label={wl.includes(p.id) ? "Remove from wishlist" : "Save to wishlist"} onClick={() => toggleWish(p.id)}>{wl.includes(p.id) ? "♥" : "♡"}</button><div className="emoji">{p.emoji}</div><h3>{p.name}</h3><p className="muted">{p.desc}</p>
+              <button className="heart" aria-label={wl.includes(p.id) ? "Remove from wishlist" : "Save to wishlist"} onClick={() => toggleWish(p.id)}>{wl.includes(p.id) ? "♥" : "♡"}</button>
+              <div className="emoji">{p.emoji}</div><h3>{p.name}</h3><p className="muted">{p.desc}</p>
               <div className="price"><b>{inr(p.price)}</b> {+p.mrp > +p.price && <><s className="muted">{inr(p.mrp)}</s> <span className="badge s-delivered">{Math.round(100 - (p.price / p.mrp) * 100)}% off</span> </>}<span className="muted">per {p.unit}</span></div>
-              {p.stock > 0 ? (
-                <div className="qty"><button aria-label="Remove one" onClick={() => setQty(p, -1)}>−</button><span>{cart[p.id] || 0}</span><button aria-label="Add one" onClick={() => setQty(p, 1)}>+</button>{p.stock < 10 && <small className="out">Only {p.stock} left</small>}</div>
+              <ul className="tiers">{tr.map((t) => <li key={t.min}><span>{t.min}+ trays</span><b>{inr(t.price)} each</b></li>)}</ul>
+              <p className="muted sm">Minimum order {+p.moq || 1} trays · {st > 0 ? `${st} trays available` : "out of stock"}</p>
+              {st > 0 ? (
+                <div className="qty"><button aria-label="Remove one" onClick={() => setQty(p, -1)}>−</button><input type="number" min="0" aria-label={`Trays of ${p.name}`} value={n} onChange={(e) => setN(p, e.target.value)} /><button aria-label="Add one" onClick={() => setQty(p, 1)}>+</button><button className="chipbtn" onClick={() => setQty(p, 10)}>+10</button></div>
               ) : <p className="out">Sold out for now</p>}
-            </article>
-          ))}
+            </article>); })}
         </div>
-        {!shown.length && <p className="muted">No products match your search.</p>}
       </section>
 
       <section id="about" className="sec about">
         <div className="about-txt">
           <h2>A small farm that does one thing well</h2>
           <p>{FARM.about}</p>
-          <div className="stats"><div><b>450+</b><span>hens</span></div><div><b>400+</b><span>eggs a day</span></div><div><b>6 AM</b><span>daily collection</span></div></div>
+          <div className="stats"><div><b>{Math.floor(S.pool / TRAY)}</b><span>trays ready now</span></div><div><b>10 trays</b><span>minimum order</span></div><div><b>6 AM</b><span>daily collection</span></div></div>
         </div>
         <div className="photos"><Photo cls="ph a" src={FARM.photos.hens} alt="Hens at the farm" /><Photo cls="ph b" src={FARM.photos.eggs} alt="Fresh eggs" /><Photo cls="ph c" src={FARM.photos.hero} alt="Farm fields" /></div>
       </section>
 
       <section id="faq" className="sec faq">
         <h2>Questions, answered</h2>
-        {[["How fast do you deliver?", "Orders placed before 6 PM are delivered the next morning. We will call to confirm a time."],
+        {[["What is the minimum order?", "Each product shows its minimum, usually 10 trays (300 eggs). Larger orders get lower prices per tray."],
+          ["How fast do you deliver?", "Orders confirmed before 6 PM are delivered the next morning. Very large orders can be scheduled in advance."],
           ["What does delivery cost?", `${inr(P.pr.deliveryFee)} per order, free above ${inr(P.pr.freeAbove)}.`],
           ["How can I pay?", "Pay cash on delivery" + (FARM.upiId ? ", by UPI" : "") + (FARM.razorpayKey ? ", or by card and net banking online." : ".")],
+          ["Can I get a GST invoice?", "Yes. Every order has a downloadable invoice in your account."],
           ["Can I cancel an order?", "Yes. Open your account and cancel any order that is still Pending. Otherwise call us."]].map(([a, b]) => <details key={a}><summary>{a}</summary><p>{b}</p></details>)}
       </section>
 
@@ -185,7 +188,7 @@ export default function Shop({ products, orders, setOrders, setProducts }) {
         <Modal side title="Your basket" onClose={() => setView(null)}>
           {!lines.length ? <p className="muted">Your basket is empty. Add eggs or chicken to get started.</p> : <>
             {lines.map((l) => { const p = products.find((x) => x.id === l.id); return (
-              <div className="line" key={l.id}><span>{l.name}<br /><small className="muted">{inr(l.price)} per {l.unit}</small></span>
+              <div className="line" key={l.id}><span>{l.name}<br /><small className="muted">{inr(l.price)} per {l.unit}{l.price < l.base ? " (bulk price)" : ""} · min {l.moq}</small></span>
                 <span className="qty"><button aria-label="Remove one" onClick={() => setQty(p, -1)}>−</button><span>{l.qty}</span><button aria-label="Add one" onClick={() => setQty(p, 1)}>+</button></span><b>{inr(l.price * l.qty)}</b></div>); })}
             <Bill bill={bill} coupons={P.coupons} code={P.code} setCode={P.setCode} onCheckout={() => setView("checkout")} /></>}
         </Modal>
@@ -201,7 +204,7 @@ export default function Shop({ products, orders, setOrders, setProducts }) {
             <label>Note (optional)<input value={f.note} onChange={(e) => setF({ ...f, note: e.target.value })} /></label>
             <fieldset className="pay"><legend>Payment</legend>{methods.map((m) => <label key={m} className="radio"><input type="radio" name="pay" checked={pay === m} onChange={() => setPay(m)} />{PAYNAME[m]}</label>)}</fieldset>
             <Bill bill={bill} coupons={P.coupons} code={P.code} setCode={P.setCode} />
-            <button className="btn" disabled={busy || !lines.length || bill.belowMin || !methods.length}>{busy ? "Opening payment…" : pay === "Razorpay" ? "Pay and place order" : "Place order"}</button>
+            <button className="btn" disabled={busy || !lines.length || bill.belowMin || !!bill.moqIssue || !methods.length}>{busy ? "Opening payment…" : pay === "Razorpay" ? "Pay and place order" : "Place order"}</button>
           </form>
         </Modal>
       )}

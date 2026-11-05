@@ -5,6 +5,7 @@ import { hash, salt } from "./auth.js";
 import { STEPS, PAYNAME, invoice } from "./Shop.jsx";
 import { usePricing, computeBill } from "./pricing.js";
 import Bill from "./Bill.jsx";
+import { useStock, makeLines, stepQty } from "./farm.js";
 
 const TABS = [["overview", "Overview"], ["orders", "My orders"], ["track", "Track order"], ["wishlist", "Wishlist"], ["basket", "Basket"], ["addresses", "Addresses"], ["payments", "Payments"], ["profile", "Profile"], ["security", "Password & security"], ["support", "Help & complaints"]];
 const go = (t) => (location.hash = "#/account/" + t);
@@ -22,6 +23,7 @@ export default function Account({ products, orders, setOrders, setProducts }) {
   const [wish, setWish] = useLS("kf_wish", {});
   const [tickets, setTickets] = useLS("kf_tickets", []);
   const [sel, setSel] = useState("");
+  const S = useStock(orders);
   const tab = location.hash.split("/")[2] || "overview";
   const Top = <header className="nav"><a href="#/" className="logo">🥚 {FARM.name}</a><nav><a className="btn sm ghost" href="#/">Back to shop</a></nav></header>;
   if (!user) return <>{Top}<div className="login"><div className="card form"><h2>Log in to see your account</h2><p className="muted">Your orders, addresses and wishlist live here.</p><button className="btn" onClick={() => openShop("auth")}>Log in or create account</button></div></div></>;
@@ -31,10 +33,9 @@ export default function Account({ products, orders, setOrders, setProducts }) {
   const addrs = user.addresses || (user.address ? [{ id: "home", label: "Home", name: user.name, phone: user.phone, line: user.address, pin: "", def: true }] : []);
   const count = Object.values(cart).reduce((a, b) => a + b, 0);
   const act = mine.filter((o) => !done(o)).length;
-  const restock = (o) => setProducts((ps) => ps.map((p) => { const i = (o.items || []).find((i) => i.id === p.id); return i ? { ...p, stock: +p.stock + i.qty } : p; }));
-  const c = { ...U, mine, wl, addrs, products, cart, setCart, setWish, tickets, setTickets, sel, setSel, orders,
+  const c = { ...U, stockOf: S.stockOf, mine, wl, addrs, products, cart, setCart, setWish, tickets, setTickets, sel, setSel, orders,
     reorder: (o) => { setCart(Object.fromEntries(o.items.map((i) => [i.id, i.qty]))); openShop("cart"); },
-    cancel: (o) => { if (confirm("Cancel this order?")) { setOrders((os) => os.map((x) => (x.id === o.id ? { ...x, status: "Cancelled" } : x))); restock(o); } } };
+    cancel: (o) => { if (confirm("Cancel this order?")) { setOrders((os) => os.map((x) => (x.id === o.id ? { ...x, status: "Cancelled" } : x))); } } };
   const View = { overview: Overview, orders: Orders, track: Track, wishlist: Wishlist, basket: Basket, addresses: Addresses, payments: Payments, profile: Profile, security: Security, support: Support }[tab] || Overview;
   return (
     <>
@@ -130,7 +131,7 @@ function Wishlist({ c }) {
       {!items.length && <Empty text="Tap the heart on any product in the shop to save it here." cta="Browse products" onCta={() => openShop()} />}
       <div className="wgrid">{items.map((p) => (
         <article className="card" key={p.id}><div className="emoji">{p.emoji}</div><h3>{p.name}</h3><p><b>{inr(p.price)}</b> <span className="muted">per {p.unit}</span></p>
-          <div className="row">{p.stock > 0 ? <button className="btn sm" onClick={() => c.setCart((x) => ({ ...x, [p.id]: Math.min(p.stock, (x[p.id] || 0) + 1) }))}>Add to basket</button> : <span className="out">Sold out</span>}
+          <div className="row">{c.stockOf(p) > 0 ? <button className="btn sm" onClick={() => c.setCart((x) => ({ ...x, [p.id]: stepQty(p, x[p.id] || 0, 1, c.stockOf(p)) }))}>Add to basket</button> : <span className="out">Sold out</span>}
             <button className="btn sm ghost" onClick={() => c.setWish((w) => ({ ...w, [c.user.id]: c.wl.filter((i) => i !== p.id) }))}>Remove</button></div></article>))}</div>
     </>
   );
@@ -138,16 +139,16 @@ function Wishlist({ c }) {
 
 function Basket({ c }) {
   const P = usePricing();
-  const lines = c.products.filter((p) => c.cart[p.id] > 0 && p.active !== "No").map((p) => ({ id: p.id, name: p.name, unit: p.unit, price: +p.price, qty: Math.min(c.cart[p.id], p.stock), p })).filter((l) => l.qty > 0);
+  const lines = makeLines(c.products, c.cart, c.stockOf);
   const bill = computeBill({ lines, products: c.products, ...P, user: c.user, orders: c.orders });
-  const set = (p, d) => c.setCart((x) => ({ ...x, [p.id]: Math.max(0, Math.min(p.stock, (x[p.id] || 0) + d)) }));
+  const set = (id, d) => { const p = c.products.find((x) => x.id === id); c.setCart((x) => ({ ...x, [id]: stepQty(p, x[id] || 0, d, c.stockOf(p)) })); };
   return (
     <>
       <h2>Basket</h2>
       {!lines.length ? <Empty text="Your basket is empty." cta="Shop now" onCta={() => openShop()} /> : (
         <section className="card">
-          {lines.map(({ p, qty, name }) => <div className="line" key={p.id}><span>{name}<br /><small className="muted">{inr(p.price)} per {p.unit}</small></span>
-            <span className="qty"><button aria-label="Remove one" onClick={() => set(p, -1)}>−</button><span>{qty}</span><button aria-label="Add one" onClick={() => set(p, 1)}>+</button></span><b>{inr(p.price * qty)}</b></div>)}
+          {lines.map((l) => <div className="line" key={l.id}><span>{l.name}<br /><small className="muted">{inr(l.price)} per {l.unit}{l.price < l.base ? " (bulk price)" : ""} · min {l.moq}</small></span>
+            <span className="qty"><button aria-label="Remove one" onClick={() => set(l.id, -1)}>−</button><span>{l.qty}</span><button aria-label="Add one" onClick={() => set(l.id, 1)}>+</button></span><b>{inr(l.price * l.qty)}</b></div>)}
           <Bill bill={bill} coupons={P.coupons} code={P.code} setCode={P.setCode} onCheckout={() => openShop("checkout")} cta="Go to checkout" />
         </section>
       )}

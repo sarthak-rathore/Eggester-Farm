@@ -1,11 +1,13 @@
 import React, { useState } from "react";
 import { FARM } from "./config.js";
 import { useLS } from "./store.js";
+import { useAnalysis } from "./farm.js";
 
 const SUB = [["overview", "Overview"], ["profile", "Owner profile"], ["farm", "Farm details"], ["security", "Password & security"], ["backup", "Backup & data"], ["setup", "Setup status"]];
 const Msg = ({ m }) => (m ? <p className={m[0] === "e" ? "out" : "okmsg"} role="status">{m.slice(2)}</p> : null);
 
-export default function AdminAccount({ orders, products, setTxns, setProd, setOrders }) {
+export default function AdminAccount({ orders, txns, setTxns, setOrders }) {
+  const A = useAnalysis(orders, txns);
   const [sub, setSub] = useState("overview");
   const [tickets] = useLS("kf_tickets", []);
   const [pin, setPin] = useLS("kf_pin", FARM.pin);
@@ -15,7 +17,7 @@ export default function AdminAccount({ orders, products, setTxns, setProd, setOr
   const [pw, setPw] = useState({ cur: "", n: "", n2: "" });
   const [msg, setMsg] = useState("");
   const F = (o, set, k, l, p = {}) => <label>{l}<input value={o[k] ?? ""} onChange={(e) => set({ ...o, [k]: e.target.value })} {...p} /></label>;
-  const attention = [["Orders waiting for confirmation", orders.filter((o) => o.status === "Pending").length], ["Open customer complaints", tickets.filter((t) => t.status === "Open").length], ["Products running low (under 10)", products.filter((p) => +p.stock < 10).length]];
+  const attention = [["Orders waiting for confirmation", orders.filter((o) => o.status === "Pending").length, orders.some((o) => o.status === "Pending")], ["Open customer complaints", tickets.filter((t) => t.status === "Open").length, tickets.some((t) => t.status === "Open")], ["Egg trays in stock", A.tot.stockTrays, A.tot.stockTrays < 20], ["Days of feed left", A.tot.daysLeft === null ? "–" : Math.round(A.tot.daysLeft), A.tot.daysLeft !== null && A.tot.daysLeft < 7]];
   const exportData = () => {
     const o = {}; Object.keys(localStorage).filter((k) => k.startsWith("kf_") && !["kf_session", "kf_cart"].includes(k)).forEach((k) => (o[k] = localStorage.getItem(k)));
     const l = document.createElement("a"); l.href = URL.createObjectURL(new Blob([JSON.stringify(o)], { type: "application/json" })); l.download = `farm-backup-${new Date().toISOString().slice(0, 10)}.json`; l.click();
@@ -39,7 +41,7 @@ export default function AdminAccount({ orders, products, setTxns, setProd, setOr
 
       {sub === "overview" && <>
         <section className="card"><div className="who"><div className="avatar">{(adm.name || "O").split(" ").map((w) => w[0]).slice(0, 2).join("").toUpperCase()}</div><div><b>{adm.name}</b><span className="muted">{FARM.adminEmail} · Owner</span></div></div></section>
-        <div className="kpis">{attention.map(([l, n]) => <div className={"kpi " + (n ? "bad" : "good")} key={l}><span>{l}</span><b>{n}</b></div>)}</div>
+        <div className="kpis">{attention.map(([l, n, bad]) => <div className={"kpi " + (bad ? "bad" : "good")} key={l}><span>{l}</span><b>{n}</b></div>)}</div>
         <section className="card"><h3>Your shop</h3><p className="muted">{FARM.name}, {FARM.address}<br />{FARM.phone} · {FARM.email}</p><p className="muted">Customers see this on the shop. Change it under Farm details. Prices, tax, offers and charges are under the Offers tab.</p></section>
       </>}
 
@@ -73,8 +75,8 @@ export default function AdminAccount({ orders, products, setTxns, setProd, setOr
       {sub === "backup" && <>
         <section className="card"><h3>Backup your data</h3><p className="muted">Orders, money records, products and customers are stored in this browser. Download a backup regularly and keep it safe.</p><button className="btn sm" onClick={exportData}>Download backup</button></section>
         <section className="card"><h3>Restore from backup</h3><p className="muted">Choose a backup file you downloaded earlier. This replaces the data in this browser.</p><input type="file" accept="application/json" onChange={importData} /></section>
-        <section className="card danger"><h3>Clear all records</h3><p className="muted">Deletes the sample or real money, production and order records.</p>
-          <button className="btn sm ghost" onClick={() => { if (confirm("Delete all money, production and order records? This cannot be undone.")) { setTxns([]); setProd([]); setOrders([]); } }}>Clear all records</button></section>
+        <section className="card danger"><h3>Clear all records</h3><p className="muted">Deletes all flocks, daily logs, feed, stock adjustments, money records and orders. Download a backup first.</p>
+          <button className="btn sm ghost" onClick={() => { if (confirm("Delete all money, production and order records? This cannot be undone.")) { ["kf_batches", "kf_logs", "kf_feed", "kf_adj"].forEach((k) => { localStorage.setItem(k, "[]"); dispatchEvent(new CustomEvent("kf-ls", { detail: k })); }); setTxns([]); setOrders([]); } }}>Clear all records</button></section>
       </>}
 
       {sub === "setup" && <section className="card"><h3>Setup status</h3>

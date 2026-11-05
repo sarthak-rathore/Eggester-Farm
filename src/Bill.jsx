@@ -17,6 +17,7 @@ export default function Bill({ bill, coupons, code, setCode, onCheckout, cta = "
       <div className="line tot"><span>Total</span><b>{inr(bill.total)}</b></div>
       {bill.saved > 0 && <p className="savebadge">You are saving {inr(bill.saved)} on this order{bill.offer?.auto === "Yes" ? ` (${bill.offer.label})` : ""}.</p>}
       {bill.toFree > 0 && <p className="muted">Add {inr(bill.toFree)} more for free delivery.</p>}
+      {bill.moqIssue && <p className="out" role="alert">{bill.moqIssue.name}: the minimum order is {bill.moqIssue.moq} trays. Add {bill.moqIssue.moq - bill.moqIssue.qty} more.</p>}
       {bill.belowMin && <p className="out" role="alert">The minimum order is {inr(bill.minOrder)}. Add {inr(bill.minOrder - bill.sub)} more to continue.</p>}
       {!!bill.sub && (
         <div className="coupon">
@@ -26,7 +27,7 @@ export default function Bill({ bill, coupons, code, setCode, onCheckout, cta = "
           {!manual && !!chips.length && <div className="chips">{chips.map((c) => <button type="button" key={c.id} title={c.label} onClick={() => apply(c.code)}>{c.code}</button>)}</div>}
         </div>
       )}
-      {onCheckout && <button type="button" className="btn" disabled={!bill.sub || bill.belowMin} onClick={onCheckout}>{cta}</button>}
+      {onCheckout && <button type="button" className="btn" disabled={!bill.sub || bill.belowMin || !!bill.moqIssue} onClick={onCheckout}>{cta}</button>}
     </div>
   );
 }

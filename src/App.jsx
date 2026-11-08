@@ -14,7 +14,9 @@ const AdminOffers = lazy(() => import("./AdminOffers.jsx"));
 const Flocks = named(() => import("./AdminFarm.jsx"), "Flocks");
 const DailyLog = named(() => import("./AdminFarm.jsx"), "DailyLog");
 const Feed = named(() => import("./AdminFarm.jsx"), "Feed");
-const Eggs = named(() => import("./AdminFarm.jsx"), "Eggs");
+const Stock = named(() => import("./AdminFarm.jsx"), "Stock");
+const Expenses = named(() => import("./AdminFarm.jsx"), "Expenses");
+const Today = lazy(() => import("./AdminToday.jsx"));
 const Money = named(() => import("./AdminFarm.jsx"), "Money");
 const Lz = ({ children }) => <Suspense fallback={<p className="muted">Loading…</p>}>{children}</Suspense>;
 
@@ -39,7 +41,7 @@ export default function App() {
 function Admin(d) {
   const [pin] = useLS("kf_pin", FARM.pin);
   const [ok, setOk] = useState(sessionStorage.getItem("kf_ok") === "1");
-  const [tab, setTab] = useState("Dashboard");
+  const [tab, setTab] = useState("Today");
   const [try_, setTry] = useState("");
   const [un, setUn] = useState("");
   const [tickets, setTickets] = useLS("kf_tickets", []);
@@ -54,7 +56,7 @@ function Admin(d) {
     );
   const pending = d.orders.filter((o) => o.status === "Pending").length;
   const openT = tickets.filter((t) => t.status === "Open").length;
-  const tabs = ["Dashboard", "Flocks", "Daily log", "Feed", "Egg stock", "Orders", "Customers", "Money", "Products", "Offers", "Support", "Account"];
+  const tabs = ["Today", "Dashboard", "Flocks", "Daily log", "Feed", "Stock", "Expenses", "Orders", "Customers", "Money", "Products", "Offers", "Support", "Account"];
   return (
     <div className="admin">
       <header className="nav dark"><span className="logo">🥚 {FARM.name} · Admin</span><div className="row"><a href="#/" className="btn sm ghost light">View shop</a>
@@ -62,11 +64,13 @@ function Admin(d) {
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" style={{ verticalAlign: "-3px", marginRight: 6 }}><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" /><path d="M16 17l5-5-5-5" /><path d="M21 12H9" /></svg>Log out</button></div></header>
       <div className="tabs">{tabs.map((t) => <button key={t} className={t === tab ? "on" : ""} onClick={() => setTab(t)}>{t}{t === "Orders" && pending ? <i>{pending}</i> : null}{t === "Support" && openT ? <i>{openT}</i> : null}</button>)}</div>
       <main className="wrap">
+        {tab === "Today" && <Lz><Today {...d} /></Lz>}
         {tab === "Dashboard" && <Lz><Dash {...d} /></Lz>}
         {tab === "Flocks" && <Lz><Flocks {...d} /></Lz>}
         {tab === "Daily log" && <Lz><DailyLog {...d} /></Lz>}
         {tab === "Feed" && <Lz><Feed {...d} /></Lz>}
-        {tab === "Egg stock" && <Lz><Eggs {...d} /></Lz>}
+        {tab === "Stock" && <Lz><Stock {...d} /></Lz>}
+        {tab === "Expenses" && <Lz><Expenses {...d} /></Lz>}
         {tab === "Orders" && <Crud title="Wholesale orders" rows={d.orders} blank={{ date: today(), status: "Pending", items: [], total: 0, payMethod: "COD", payStatus: "Unpaid" }} {...upsert(d.setOrders)}
           fields={[{ k: "date", label: "Date", type: "date" }, { k: "name", label: "Customer" }, { k: "phone", label: "Phone" }, { k: "address", label: "Address" }, { k: "items", label: "Items", noForm: true, fmt: (v) => (v || []).map((i) => `${i.name} × ${i.qty}`).join(", ") },
             { k: "total", label: "Total", type: "number", fmt: inr }, { k: "discount", label: "Discount", type: "number", req: false, fmt: (v) => (+v ? "−" + inr(v) : "") }, { k: "payMethod", label: "Payment", opts: ["COD", "UPI", "Razorpay"] }, { k: "payStatus", label: "Paid?", opts: ["Unpaid", "Paid", "Refunded"] },

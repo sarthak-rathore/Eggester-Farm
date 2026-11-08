@@ -23,12 +23,15 @@ see customers' orders on another device (WhatsApp carries the order). Razorpay p
 verified server-side yet. Passwords are hashed in the browser: fine for a demo, not for production.
 
 ## What the owner manages (Admin)
-- Dashboard: flock, feed and nutrition, eggs and stock, money, orders and buyers, with graphs by day, month or year and a filter per flock
-- Flocks: each batch of chicks (count, cost, supplier), with mortality and production per batch
-- Daily log: feed given, birds died, eggs collected and broken, per flock per day
-- Feed: stock in kg and days left, purchases, feed types with protein and energy
-- Egg stock: trays produced, sold and in stock (derived), plus manual adjustments
-- Orders, Customers, Money (automatic ledger plus other costs), Products (bulk tray prices), Offers, Support, Account
+- Today: one page to record the whole day for a chosen date, farm and flock (feed, deaths, eggs, feed and box purchases, lost eggs, expenses, walk-in sales)
+- Dashboard: flock, feed and nutrition, eggs, stock, money, farms, orders and buyers, with graphs by day, month or year and filters for farm and flock
+- Flocks: your farms (3 in the demo) and each batch of chicks, with mortality and production
+- Daily log: review or correct any past entry
+- Feed: stock per farm, purchases, feed types with protein and energy
+- Stock: eggs and trays, hens by farm, and packing boxes, all updated from the daily entries
+- Expenses: day-wise costs with filters (today, week, month, custom range, farm, category)
+- Money: automatic ledger plus other income and losses, with period filter
+- Orders, Customers, Products (bulk tray prices), Offers, Support, Account
 Every table can be downloaded as CSV.
 
 ## Customers

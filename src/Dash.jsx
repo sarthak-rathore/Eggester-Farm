@@ -11,8 +11,8 @@ const YR = <YAxis yAxisId="r" orientation="right" tick={{ fontSize: 11 }} width=
 const money = { formatter: (v) => inr(v) };
 
 export default function Dash({ orders, txns }) {
-  const [p, setP] = useState("day"); const [bid, setBid] = useState("");
-  const A = useAnalysis(orders, txns, bid);
+  const [p, setP] = useState("day"); const [bid, setBid] = useState(""); const [fid, setFid] = useState("");
+  const A = useAnalysis(orders, txns, bid, fid);
   const s = useMemo(() => aggregate(A.rows, p), [A, p]);
   const sm = (k) => s.reduce((a, r) => a + (r[k] || 0), 0);
   const t = A.tot, label = p === "day" ? "last 30 days" : p === "month" ? "last 12 months" : "all years";
@@ -20,16 +20,18 @@ export default function Dash({ orders, txns }) {
   const pie = Object.entries(A.expBreak).map(([name, value]) => ({ name, value: Math.round(value) }));
   const stat = Object.entries(A.statusCount).map(([name, value]) => ({ name, value }));
   const buyers = Object.entries(A.buyers).sort((a, b) => b[1] - a[1]).slice(0, 6).map(([name, trays]) => ({ name, trays: Math.round(trays) }));
-  const cmp = A.perBatch.map((x) => ({ name: x.b.name, mortality: Math.round(x.mortPct * 10) / 10, henDay: x.hdp === null ? 0 : Math.round(x.hdp * 10) / 10 }));
+  const cmp = A.perBatch.filter((x) => !fid || x.b.farmId === fid).map((x) => ({ name: x.b.name, mortality: Math.round(x.mortPct * 10) / 10, henDay: x.hdp === null ? 0 : Math.round(x.hdp * 10) / 10 }));
   const noData = !A.batches.length;
   return (
     <>
       <div className="bar"><h2>Farm overview, {label}</h2>
         <div className="row">
-          <select aria-label="Flock" value={bid} onChange={(e) => setBid(e.target.value)} style={{ width: "auto" }}><option value="">All flocks</option>{A.batches.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}</select>
+          <select aria-label="Farm" value={fid} onChange={(e) => { setFid(e.target.value); setBid(""); }} style={{ width: "auto" }}><option value="">All farms</option>{A.farms.map((f) => <option key={f.id} value={f.id}>{f.name}</option>)}</select>
+          <select aria-label="Flock" value={bid} onChange={(e) => setBid(e.target.value)} style={{ width: "auto" }}><option value="">All flocks</option>{A.batches.filter((b) => !fid || b.farmId === fid).map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}</select>
           <div className="seg">{["day", "month", "year"].map((x) => <button key={x} className={x === p ? "on" : ""} onClick={() => setP(x)}>{x === "day" ? "Day wise" : x === "month" ? "Month wise" : "Year wise"}</button>)}</div>
         </div></div>
       <Alerts list={A.alerts} />
+      {fid && <p className="muted">Showing {A.farms.find((f) => f.id === fid)?.name}. Costs and production are for this farm only. Sales are shared by all farms, so revenue and profit here are this farm's share of eggs produced. Stock is for all farms.</p>}
       {noData && <p className="muted">Add your first flock under Flocks and start the daily log. Charts fill in as you record.</p>}
 
       <h3 className="sh">Flock</h3>
@@ -54,7 +56,7 @@ export default function Dash({ orders, txns }) {
 
       <h3 className="sh">Eggs and stock</h3>
       <div className="kpis">
-        <Kpi l="Eggs collected" v={nf(sm("eggs"))} /><Kpi l="Hen-day production" v={t.hdp7 === null ? "–" : nf(t.hdp7, 1) + "%"} hint="last 7 days, laying hens only" t={t.hdp7 !== null && t.hdp7 < 70 ? "bad" : "good"} /><Kpi l="Trays produced" v={nf(trP)} /><Kpi l="Trays sold" v={nf(trS)} /><Kpi l="Trays in stock now" v={nf(t.stockTrays)} t={t.stockTrays < 20 ? "bad" : "good"} /><Kpi l="Eggs broken" v={nf(sm("eggs") ? (sm("broken") / sm("eggs")) * 100 : 0, 1) + "%"} />
+        <Kpi l="Eggs collected" v={nf(sm("eggs"))} /><Kpi l="Hen-day production" v={t.hdp7 === null ? "–" : nf(t.hdp7, 1) + "%"} hint="last 7 days, laying hens only" t={t.hdp7 !== null && t.hdp7 < 70 ? "bad" : "good"} /><Kpi l="Trays produced" v={nf(trP)} /><Kpi l="Trays sold" v={nf(trS)} /><Kpi l="Trays in stock now" v={nf(t.stockTrays)} t={t.stockTrays < 20 ? "bad" : "good"} /><Kpi l="Boxes in stock" v={nf(t.boxStock)} t={t.boxStock < 20 ? "bad" : "good"} /><Kpi l="Eggs broken" v={nf(sm("eggs") ? (sm("broken") / sm("eggs")) * 100 : 0, 1) + "%"} />
       </div>
       <div className="two">
         <ChartCard title="Egg production" hint="Good and broken eggs (bars), hen-day production % (line)"><ComposedChart data={s}>{G}{X}{Y}{YR}<Tooltip /><Legend /><Bar dataKey="good" name="Good eggs" stackId="e" fill={COL.green} /><Bar dataKey="broken" name="Broken" stackId="e" fill={COL.red} radius={[4, 4, 0, 0]} /><Line yAxisId="r" dataKey="hdp" name="Hen-day %" stroke={COL.dark} strokeWidth={2} dot={false} connectNulls /></ComposedChart></ChartCard>
@@ -70,6 +72,12 @@ export default function Dash({ orders, txns }) {
         <ChartCard title="Cost per tray" hint="What it costs to produce one tray"><LineChart data={s}>{G}{X}{Y}<Tooltip {...money} /><Legend /><Line dataKey="costPerTray" name="Running cost per tray" stroke={COL.red} strokeWidth={2} dot={false} connectNulls /><Line dataKey="feedCostPerTray" name="Feed cost per tray" stroke={COL.yolk} strokeWidth={2} dot={false} connectNulls /></LineChart></ChartCard>
         <ChartCard title="Where the money goes" hint="All expenses so far">{pie.length ? <PieChart><Pie data={pie} dataKey="value" nameKey="name" innerRadius={50} outerRadius={90}>{pie.map((_, i) => <Cell key={i} fill={PIE[i % PIE.length]} />)}</Pie><Tooltip {...money} /><Legend /></PieChart> : <div />}</ChartCard>
         <ChartCard title="Flock comparison" hint="Mortality % and hen-day % per batch"><BarChart data={cmp}>{G}<XAxis dataKey="name" tick={{ fontSize: 11 }} />{Y}<Tooltip /><Legend /><Bar dataKey="mortality" name="Mortality %" fill={COL.red} radius={[4, 4, 0, 0]} /><Bar dataKey="henDay" name="Hen-day % (7 days)" fill={COL.green} radius={[4, 4, 0, 0]} /></BarChart></ChartCard>
+      </div>
+
+      <h3 className="sh">Farms</h3>
+      <div className="two">
+        <ChartCard title="Hens alive by farm"><BarChart data={A.farmStats.map((x) => ({ name: x.farm.name, alive: x.alive, died: x.died }))}>{G}<XAxis dataKey="name" tick={{ fontSize: 11 }} />{Y}<Tooltip /><Legend /><Bar dataKey="alive" name="Alive" fill={COL.green} radius={[4, 4, 0, 0]} /><Bar dataKey="died" name="Died" fill={COL.red} radius={[4, 4, 0, 0]} /></BarChart></ChartCard>
+        <ChartCard title="Spending by farm" hint="Chicks, feed and daily costs so far"><BarChart data={A.farmStats.map((x) => ({ name: x.farm.name, expense: Math.round(x.expense) }))}>{G}<XAxis dataKey="name" tick={{ fontSize: 11 }} />{Y}<Tooltip {...money} /><Bar dataKey="expense" name="Spent" fill={COL.yolk} radius={[4, 4, 0, 0]} /></BarChart></ChartCard>
       </div>
 
       <h3 className="sh">Orders and buyers</h3>

@@ -1,9 +1,9 @@
 // Values come from environment variables (see .env.example); defaults keep the site working with no setup.
 // One-time reset when upgrading to the egg-farm edition (keeps accounts and logins).
 try {
-  if (!localStorage.getItem("kf_v2")) {
-    ["kf_products", "kf_orders", "kf_txns", "kf_prod", "kf_coupons", "kf_charges", "kf_pricing", "kf_cart", "kf_wish", "kf_farm", "kf_seeded", "kf_coupon"].forEach((k) => localStorage.removeItem(k));
-    localStorage.setItem("kf_v2", "1");
+  if (!localStorage.getItem("kf_v3")) {
+    ["kf_products", "kf_orders", "kf_txns", "kf_prod", "kf_coupons", "kf_charges", "kf_pricing", "kf_cart", "kf_wish", "kf_farm", "kf_seeded", "kf_coupon", "kf_batches", "kf_logs", "kf_feed", "kf_adj", "kf_exp", "kf_boxes", "kf_boxadj", "kf_farms", "kf_boxcfg"].forEach((k) => localStorage.removeItem(k));
+    localStorage.setItem("kf_v3", "1");
   }
 } catch {}
 const e = import.meta.env;

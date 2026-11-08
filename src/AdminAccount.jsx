@@ -76,7 +76,7 @@ export default function AdminAccount({ orders, txns, setTxns, setOrders }) {
         <section className="card"><h3>Backup your data</h3><p className="muted">Orders, money records, products and customers are stored in this browser. Download a backup regularly and keep it safe.</p><button className="btn sm" onClick={exportData}>Download backup</button></section>
         <section className="card"><h3>Restore from backup</h3><p className="muted">Choose a backup file you downloaded earlier. This replaces the data in this browser.</p><input type="file" accept="application/json" onChange={importData} /></section>
         <section className="card danger"><h3>Clear all records</h3><p className="muted">Deletes all flocks, daily logs, feed, stock adjustments, money records and orders. Download a backup first.</p>
-          <button className="btn sm ghost" onClick={() => { if (confirm("Delete all money, production and order records? This cannot be undone.")) { ["kf_batches", "kf_logs", "kf_feed", "kf_adj"].forEach((k) => { localStorage.setItem(k, "[]"); dispatchEvent(new CustomEvent("kf-ls", { detail: k })); }); setTxns([]); setOrders([]); } }}>Clear all records</button></section>
+          <button className="btn sm ghost" onClick={() => { if (confirm("Delete all money, production and order records? This cannot be undone.")) { ["kf_batches", "kf_logs", "kf_feed", "kf_adj", "kf_exp", "kf_boxes", "kf_boxadj"].forEach((k) => { localStorage.setItem(k, "[]"); dispatchEvent(new CustomEvent("kf-ls", { detail: k })); }); setTxns([]); setOrders([]); } }}>Clear all records</button></section>
       </>}
 
       {sub === "setup" && <section className="card"><h3>Setup status</h3>

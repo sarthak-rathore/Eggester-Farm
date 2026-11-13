@@ -22,17 +22,26 @@ Data lives in each browser. Accounts, orders and payments are stored locally, so
 see customers' orders on another device (WhatsApp carries the order). Razorpay payments are not
 verified server-side yet. Passwords are hashed in the browser: fine for a demo, not for production.
 
-## What the owner manages (Admin)
-- Today: one page to record the whole day for a chosen date, farm and flock (feed, deaths, eggs, feed and box purchases, lost eggs, expenses, walk-in sales)
-- Dashboard: flock, feed and nutrition, eggs, stock, money, farms, orders and buyers, with graphs by day, month or year and filters for farm and flock
-- Flocks: your farms (3 in the demo) and each batch of chicks, with mortality and production
-- Daily log: review or correct any past entry
-- Feed: stock per farm, purchases, feed types with protein and energy
-- Stock: eggs and trays, hens by farm, and packing boxes, all updated from the daily entries
-- Expenses: day-wise costs with filters (today, week, month, custom range, farm, category)
-- Money: automatic ledger plus other income and losses, with period filter
-- Orders, Customers, Products (bulk tray prices), Offers, Support, Account
-Every table can be downloaded as CSV.
+## The owner dashboard (simple edition)
+Open `/#/admin`. Four big buttons are always visible (bottom bar on phones):
+- **My Farms**: every batch (Batch A, B...). Tap one to open it. Inside, a second menu has: Overview, Today's Update, Production, Sales, Expenses, Stock Management, Feed Management, Mortality, Health & Medicine, Purchases, Staff & Labor, Tasks & Reminders, Documents & Records, Reports & Analytics.
+- **Overall Farm Overview**: all farms together, with filters for farm, batch, date range, month, year, expense type and egg type.
+- **Reports & Analytics**: day by day, month by month profit, eggs, sales by customer, expenses, feed, deaths, stock. Download for Excel or print.
+- **Settings**: farms & batches, owner & address, staff, suppliers, customers, own fields, alerts, logins (manager / worker / viewer), backup & restore, account, shop prices, customer messages.
+
+### Enter once, everything updates
+The farmer only fills **Today's Update** (eggs, birds, feed, sales, expenses, purchases, feed made). The app then does the rest:
+- 1 tray = 30 eggs, 1 box = 9 trays = 270 eggs. Selling 3 boxes lowers eggs, trays and boxes, adds the sale, revenue, profit, stock and reports.
+- Raw materials (Kg / Quintal / Ton / Litre) -> "Make feed" lowers raw stock, raises feed stock and works out the feed cost. Raw purchases are the expense, so cost is never counted twice.
+- Buying feed, raw material, trays or boxes adds to stock and to expenses. Medicine adds an expense and an optional reminder.
+- Sales can be marked "money pending" and show under Sales > Money to receive.
+- Every saved line can be deleted from "Already saved" at the bottom of Today's Update, and stock and money correct themselves.
+
+### Logins
+Owner: email + password. Manager / worker / viewer: phone + PIN (Settings > Who Can Log In). Manager = everything except Settings, Worker = Today's Update and Tasks only, Viewer = Overview and Reports only. These are checked in the browser, like the rest of phase 2.
+
+### Upgrading from the earlier version
+The first time this version opens, farm records in the browser are reset to fresh demo data (customer accounts are kept). Download a backup first if you entered real records.
 
 ## Customers
 Wholesale only: egg trays of 30, minimum order and bulk price tiers per product, stock taken live from the egg stock.

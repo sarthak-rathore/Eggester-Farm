@@ -1,6 +1,11 @@
 // Values come from environment variables (see .env.example); defaults keep the site working with no setup.
 // One-time reset when upgrading to the egg-farm edition (keeps accounts and logins).
 try {
+  if (!localStorage.getItem("kf_v4")) {
+    // upgrade to the simple-dashboard edition: farm data moves to the new batch-wise layout, so start the demo fresh (accounts and logins are kept)
+    ["kf_batches", "kf_logs", "kf_feed", "kf_adj", "kf_exp", "kf_boxes", "kf_boxadj", "kf_farms", "kf_boxcfg", "kf_seeded", "kf_orders", "kf_txns", "kf_raw", "kf_rawbuy", "kf_mix", "kf_recipes", "kf_trays", "kf_trayadj", "kf_staff", "kf_sup", "kf_cust", "kf_cf", "kf_notif", "kf_tasks", "kf_docs", "kf_team"].forEach((k) => localStorage.removeItem(k));
+    localStorage.setItem("kf_v4", "1");
+  }
   if (!localStorage.getItem("kf_v3")) {
     ["kf_products", "kf_orders", "kf_txns", "kf_prod", "kf_coupons", "kf_charges", "kf_pricing", "kf_cart", "kf_wish", "kf_farm", "kf_seeded", "kf_coupon", "kf_batches", "kf_logs", "kf_feed", "kf_adj", "kf_exp", "kf_boxes", "kf_boxadj", "kf_farms", "kf_boxcfg"].forEach((k) => localStorage.removeItem(k));
     localStorage.setItem("kf_v3", "1");

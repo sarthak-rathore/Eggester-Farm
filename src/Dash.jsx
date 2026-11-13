@@ -10,8 +10,8 @@ const Y = <YAxis tick={{ fontSize: 11 }} width={46} />;
 const YR = <YAxis yAxisId="r" orientation="right" tick={{ fontSize: 11 }} width={46} />;
 const money = { formatter: (v) => inr(v) };
 
-export default function Dash({ orders, txns }) {
-  const [p, setP] = useState("day"); const [bid, setBid] = useState(""); const [fid, setFid] = useState("");
+export default function Dash({ orders, txns, batchId = "", farmId = "" }) {
+  const [p, setP] = useState("day"); const [bid, setBid] = useState(batchId); const [fid, setFid] = useState(farmId);
   const A = useAnalysis(orders, txns, bid, fid);
   const s = useMemo(() => aggregate(A.rows, p), [A, p]);
   const sm = (k) => s.reduce((a, r) => a + (r[k] || 0), 0);
@@ -24,7 +24,7 @@ export default function Dash({ orders, txns }) {
   const noData = !A.batches.length;
   return (
     <>
-      <div className="bar"><h2>Farm overview, {label}</h2>
+      <div className="bar"><h3>All graphs, {label}</h3>
         <div className="row">
           <select aria-label="Farm" value={fid} onChange={(e) => { setFid(e.target.value); setBid(""); }} style={{ width: "auto" }}><option value="">All farms</option>{A.farms.map((f) => <option key={f.id} value={f.id}>{f.name}</option>)}</select>
           <select aria-label="Flock" value={bid} onChange={(e) => setBid(e.target.value)} style={{ width: "auto" }}><option value="">All flocks</option>{A.batches.filter((b) => !fid || b.farmId === fid).map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}</select>

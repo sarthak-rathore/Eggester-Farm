@@ -137,3 +137,52 @@ s.muted{margin-right:4px}
 .expline{display:grid;grid-template-columns:1.1fr 1.2fr .8fr 1.4fr auto;gap:8px;align-items:center}
 .savebar{position:sticky;bottom:10px;display:flex;gap:16px;align-items:center;flex-wrap:wrap;box-shadow:0 10px 30px rgba(18,58,43,.18);z-index:5}.savebar p{margin:0}
 @media(max-width:800px){.expline{grid-template-columns:1fr 1fr}}
+
+/* ===== simple owner dashboard ===== */
+body{font-size:17px}
+.hi{font:600 .55em Figtree,sans-serif;color:var(--mut);margin-left:.4em;white-space:nowrap}
+.who-s{align-self:center;font-size:.9rem;opacity:.85}
+.btn.big{font-size:1.15rem;padding:1em 2em}
+.pnav{position:sticky;top:57px;z-index:19;display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px;padding:10px 3vw;background:#fff;border-bottom:1px solid var(--line)}
+.pnav button{position:relative;display:grid;justify-items:center;gap:0;border:2px solid var(--line);background:var(--mint);border-radius:14px;padding:.55em .4em;cursor:pointer;font-family:Figtree,sans-serif}
+.pnav button span{font-size:1.5rem;line-height:1.2}.pnav button b{font-size:.95rem}.pnav button em{font-style:normal;font-size:.75rem;color:var(--mut)}
+.pnav .on{background:var(--green);border-color:var(--green);color:#fff}.pnav .on em{color:#cfe3d6}
+.pnav i{position:absolute;top:4px;right:8px;background:var(--comb);color:#fff;border-radius:99px;font-style:normal;font-size:.72rem;padding:1px 7px}
+.snav{position:sticky;top:57px;z-index:18;background:#fff;border-bottom:1px solid var(--line)}
+.pnav+.snav{top:calc(57px + 82px)}
+.snav .crumb{display:flex;gap:12px;align-items:center;flex-wrap:wrap;padding:8px 3vw 0}.snav .crumb select{width:auto;padding:.3em .6em}
+.snav .tabs{border:0;padding:8px 3vw 10px}.snav .tabs button{border:1.5px solid var(--line);background:var(--mint)}.snav .tabs .on{border-color:var(--green)}
+.tiles{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:16px;margin:18px 0}
+.tile{position:relative;display:grid;gap:2px;text-align:left;align-content:start;background:#fff;border:2px solid var(--line);border-radius:var(--r);padding:20px;cursor:pointer;font-family:Figtree,sans-serif;color:var(--ink);transition:transform .15s,border-color .15s}
+.tile:hover{transform:translateY(-3px);border-color:var(--green)}.tile .ico{font-size:2.4rem;line-height:1.2}.tile b{font-size:1.2rem;font-family:"Bricolage Grotesque",Figtree,sans-serif}.tile em{font-style:normal;color:var(--green);font-weight:600;font-size:.95rem}.tile small{color:var(--mut);font-size:.88rem;margin-top:4px}
+.tile i{position:absolute;top:12px;right:14px;background:var(--comb);color:#fff;border-radius:99px;font-style:normal;font-size:.8rem;padding:1px 9px}
+.farmgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:16px;margin:10px 0 24px}
+.farmcard{display:grid;gap:8px;text-align:left;background:#fff;border:2px solid var(--line);border-radius:var(--r);padding:20px;cursor:pointer;font-family:Figtree,sans-serif;color:var(--ink);transition:transform .15s,border-color .15s}
+.farmcard:hover{transform:translateY(-3px);border-color:var(--green)}.farmcard.closed{opacity:.6}.fc-top{display:flex;justify-content:space-between;align-items:center;gap:8px;font-size:1.25rem}
+.fc-nums{display:flex;gap:16px;flex-wrap:wrap;font-size:.9rem;color:var(--mut)}.fc-nums b{display:block;font:800 1.4rem "Bricolage Grotesque";color:var(--green)}
+.todaybox{display:flex;justify-content:space-between;align-items:center;gap:14px;flex-wrap:wrap;border-radius:var(--r);padding:16px 20px;margin-bottom:18px;border:2px solid}
+.todaybox.todo{background:#FFF6D6;border-color:#E9CE7A}.todaybox.done{background:#DDF3E5;border-color:#3E8E6B}
+.guide ol{margin:.4em 0 0;padding-left:1.3em;line-height:2}
+.login .lg-ico{font-size:3rem;text-align:center}.login h2{text-align:center;margin-bottom:0}.login .seg{justify-self:stretch}.login .seg button{flex:1}
+.sect{padding:0;margin-bottom:14px}.sect summary{display:flex;gap:14px;align-items:center;cursor:pointer;padding:16px 20px;list-style:none}.sect summary::-webkit-details-marker{display:none}
+.sect summary b{display:block;font-size:1.1rem}.sect summary small{display:block}.sect .form{padding:0 20px 20px;margin:0}
+.sect .num{flex:none;width:34px;height:34px;border-radius:50%;background:var(--green);color:var(--yolk);display:grid;place-items:center;font:800 1rem "Bricolage Grotesque"}
+.sect[open] summary{border-bottom:1px solid var(--line);margin-bottom:14px}
+.sect h4{margin:.6em 0 0;font-size:1rem;color:var(--green)}
+.qtyrow{display:grid;grid-template-columns:1.4fr 1fr;gap:8px}
+.line3{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;align-items:end;padding:12px;margin-bottom:10px;border:1.5px dashed var(--line);border-radius:12px;background:var(--mint)}
+.line3 p{grid-column:1/-1;margin:0}
+input,select,textarea{min-height:46px}
+.chips.big button{padding:.6em 1.2em;font-size:.98rem}
+.kpis.big .kpi b{font-size:1.9rem}
+.empty-note{text-align:center;padding:18px;color:var(--mut)}
+.filters{border-color:var(--green)}
+.tile,.farmcard,.pnav button,.chips button,.tabs button,.btn{touch-action:manipulation}
+@media(max-width:800px){
+  body{font-size:16px}
+  .pnav{position:fixed;top:auto;bottom:0;left:0;right:0;grid-template-columns:repeat(4,1fr);gap:4px;padding:6px 6px calc(6px + env(safe-area-inset-bottom));box-shadow:0 -6px 20px rgba(18,58,43,.15);border-top:1px solid var(--line);border-bottom:0}
+  .pnav button{padding:.35em .1em;border-width:1.5px}.pnav button span{font-size:1.4rem}.pnav button b{font-size:.62rem;line-height:1.15;text-align:center}.pnav button em{display:none}
+  .pnav+.snav{top:57px}.admin .wrap{padding-bottom:110px}.savebar{bottom:84px}
+  .who-s{display:none}
+}
+@media print{.nav,.pnav,.snav,.noprint,.chips,.rangebar,.savebar{display:none!important}body{background:#fff}.card{break-inside:avoid;border-color:#ccc}}

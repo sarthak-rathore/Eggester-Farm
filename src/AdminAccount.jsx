@@ -3,12 +3,13 @@ import { FARM } from "./config.js";
 import { useLS } from "./store.js";
 import { useAnalysis } from "./farm.js";
 
-const SUB = [["overview", "Overview"], ["profile", "Owner profile"], ["farm", "Farm details"], ["security", "Password & security"], ["backup", "Backup & data"], ["setup", "Setup status"]];
+const ALL_SUB = [["overview", "Overview"], ["profile", "Owner profile"], ["farm", "Farm details"], ["security", "Password & security"], ["backup", "Backup & Restore"], ["setup", "Setup status"]];
 const Msg = ({ m }) => (m ? <p className={m[0] === "e" ? "out" : "okmsg"} role="status">{m.slice(2)}</p> : null);
 
-export default function AdminAccount({ orders, txns, setTxns, setOrders }) {
+export default function AdminAccount({ orders, txns, setTxns, setOrders, show }) {
+  const SUB = show ? ALL_SUB.filter(([k]) => show.includes(k)) : ALL_SUB;
   const A = useAnalysis(orders, txns);
-  const [sub, setSub] = useState("overview");
+  const [sub, setSub] = useState(show ? show[0] : "overview");
   const [tickets] = useLS("kf_tickets", []);
   const [pin, setPin] = useLS("kf_pin", FARM.pin);
   const [adm, setAdm] = useLS("kf_admin", { name: "Farm Owner", phone: "" });
@@ -36,8 +37,8 @@ export default function AdminAccount({ orders, txns, setTxns, setOrders }) {
   };
   return (
     <>
-      <div className="bar"><h2>Account</h2></div>
-      <div className="chips">{SUB.map(([k, l]) => <button key={k} className={k === sub ? "on" : ""} onClick={() => { setSub(k); setMsg(""); }}>{l}</button>)}</div>
+      {!show && <div className="bar"><h2>Account</h2></div>}
+      {SUB.length > 1 && <div className="chips">{SUB.map(([k, l]) => <button key={k} className={k === sub ? "on" : ""} onClick={() => { setSub(k); setMsg(""); }}>{l}</button>)}</div>}
 
       {sub === "overview" && <>
         <section className="card"><div className="who"><div className="avatar">{(adm.name || "O").split(" ").map((w) => w[0]).slice(0, 2).join("").toUpperCase()}</div><div><b>{adm.name}</b><span className="muted">{FARM.adminEmail} · Owner</span></div></div></section>
@@ -73,10 +74,10 @@ export default function AdminAccount({ orders, txns, setTxns, setOrders }) {
       </>}
 
       {sub === "backup" && <>
-        <section className="card"><h3>Backup your data</h3><p className="muted">Orders, money records, products and customers are stored in this browser. Download a backup regularly and keep it safe.</p><button className="btn sm" onClick={exportData}>Download backup</button></section>
+        <section className="card"><h3>Backup your data</h3><p className="muted">All your farm records are stored in this phone or computer. Download a backup every week and keep the file safe (for example send it to yourself on WhatsApp or email).</p><button className="btn sm" onClick={exportData}>Download backup</button></section>
         <section className="card"><h3>Restore from backup</h3><p className="muted">Choose a backup file you downloaded earlier. This replaces the data in this browser.</p><input type="file" accept="application/json" onChange={importData} /></section>
-        <section className="card danger"><h3>Clear all records</h3><p className="muted">Deletes all flocks, daily logs, feed, stock adjustments, money records and orders. Download a backup first.</p>
-          <button className="btn sm ghost" onClick={() => { if (confirm("Delete all money, production and order records? This cannot be undone.")) { ["kf_batches", "kf_logs", "kf_feed", "kf_adj", "kf_exp", "kf_boxes", "kf_boxadj"].forEach((k) => { localStorage.setItem(k, "[]"); dispatchEvent(new CustomEvent("kf-ls", { detail: k })); }); setTxns([]); setOrders([]); } }}>Clear all records</button></section>
+        <section className="card danger"><h3>Clear all records</h3><p className="muted">Deletes all batches, daily records, purchases, stock changes, money records and orders. Download a backup first.</p>
+          <button className="btn sm ghost" onClick={() => { if (confirm("Delete all money, production and order records? This cannot be undone.")) { ["kf_batches", "kf_logs", "kf_feed", "kf_adj", "kf_exp", "kf_boxes", "kf_boxadj", "kf_rawbuy", "kf_mix", "kf_trays", "kf_trayadj", "kf_tasks", "kf_docs"].forEach((k) => { localStorage.setItem(k, "[]"); dispatchEvent(new CustomEvent("kf-ls", { detail: k })); }); setTxns([]); setOrders([]); } }}>Clear all records</button></section>
       </>}
 
       {sub === "setup" && <section className="card"><h3>Setup status</h3>

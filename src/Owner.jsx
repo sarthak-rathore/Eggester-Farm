@@ -51,19 +51,23 @@ export default function Owner(d) {
   const allowedPage = page === "home" || page === "farm" ? A.p.includes("farms") : A.p.includes(page);
   const pending = d.orders.filter((o) => o.status === "Pending").length;
   return (
-    <div className="admin">
-      <header className="nav dark"><a className="logo" href="#/admin">🥚 {FARM.name}</a><div className="row"><span className="who-s">{who}</span><a href="#/" className="btn sm ghost light">View shop</a><button className="btn sm ghost light" onClick={logout}>Log out</button></div></header>
-      <nav className="pnav" aria-label="Main menu">{PRIMARY.filter(([k]) => A.p.includes(k)).map(([k, i, l, hi]) => <button key={k} className={prim === k ? "on" : ""} onClick={() => go(k)}><span aria-hidden="true">{i}</span><b>{l}</b><em>{hi}</em>{k === "farms" && pending ? <i>{pending}</i> : null}</button>)}</nav>
-      {page === "farm" && allowedPage && <FarmBar batchId={batchId} sec={sec} allowed={A.s} />}
-      <main className="wrap">
-        {!allowedPage ? <p className="muted">You do not have permission to open this page.</p>
-          : page === "home" ? <Home d={d} who={who} role={role} A={A} />
-          : page === "farms" ? <FarmList d={d} />
-          : page === "farm" ? <FarmPage d={d} batchId={batchId} sec={sec} allowed={A.s} />
-          : page === "overview" ? <Lz><Overall d={d} /></Lz>
-          : page === "reports" ? <><div className="bar"><h2>Reports & Analytics <small className="hi">रिपोर्ट</small></h2></div><Lz><Reports d={d} /></Lz></>
-          : page === "settings" ? <Lz><Settings d={d} sub={parts[1]} go={go} /></Lz> : <Home d={d} who={who} role={role} A={A} />}
-      </main>
+    <div className="admin shell">
+      <aside className="side" aria-label="Main menu"><a className="logo" href="#/admin">🥚 {FARM.name}</a>
+        {PRIMARY.filter(([k]) => A.p.includes(k)).map(([k, i, l, hi]) => <button key={k} className={"pn " + (prim === k ? "on" : "")} onClick={() => go(k)}><span aria-hidden="true">{i}</span><b><span className="ic" aria-hidden="true">{i}</span>{l}</b><em>{hi}</em>{k === "farms" && pending ? <i>{pending}</i> : null}</button>)}
+        <div className="sfoot"><small>{who}</small><a href="#/" className="btn sm ghost light">View shop</a><button className="btn sm ghost light" onClick={logout}>Log out</button></div></aside>
+      <div className="main">
+        <header className="mtop"><a className="logo" href="#/admin">🥚 {FARM.name}</a><button className="btn sm ghost light" onClick={logout}>Log out</button></header>
+        {page === "farm" && allowedPage && <FarmBar batchId={batchId} sec={sec} allowed={A.s} />}
+        <main className="wrap">
+          {!allowedPage ? <p className="muted">You do not have permission to open this page.</p>
+            : page === "home" ? <Home d={d} who={who} role={role} A={A} />
+            : page === "farms" ? <FarmList d={d} />
+            : page === "farm" ? <FarmPage d={d} batchId={batchId} sec={sec} allowed={A.s} />
+            : page === "overview" ? <Lz><Overall d={d} /></Lz>
+            : page === "reports" ? <><div className="bar"><h2>Reports & Analytics <small className="hi">रिपोर्ट</small></h2></div><Lz><Reports d={d} /></Lz></>
+            : page === "settings" ? <Lz><Settings d={d} sub={parts[1]} go={go} /></Lz> : <Home d={d} who={who} role={role} A={A} />}
+        </main>
+      </div>
     </div>
   );
 }

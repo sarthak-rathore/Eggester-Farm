@@ -33,7 +33,6 @@ export default function Overview({ d }) {
       <section className="card form grid2 filters"><h3 className="wide">Show me</h3>
         <label>Farm<select value={fid} onChange={(e) => { setFid(e.target.value); setBid(""); }}><option value="">All farms</option>{F.farms.map((f) => <option key={f.id} value={f.id}>{f.name}</option>)}</select></label>
         <label>Batch<select value={bid} onChange={(e) => setBid(e.target.value)}><option value="">All batches</option>{F.batches.filter((b) => !fid || b.farmId === fid).map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}</select></label>
-        <label>Month<input type="month" value={rv.month || ""} max={today().slice(0, 7)} onChange={(e) => pickMonth(e.target.value)} /></label>
         <label>Year<select value={rv.year || ""} onChange={(e) => pickYear(e.target.value)}><option value="">Choose year</option>{years.map((y) => <option key={y}>{y}</option>)}</select></label>
         <label>Expense type<select value={cat} onChange={(e) => setCat(e.target.value)}><option value="">All expenses</option>{EXP_CATS.map((c) => <option key={c}>{c}</option>)}</select></label>
         <label>Egg type sold<select value={prod} onChange={(e) => setProd(e.target.value)}><option value="">All egg types</option>{d.products.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}</select></label>

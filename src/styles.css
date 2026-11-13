@@ -143,15 +143,6 @@ body{font-size:17px}
 .hi{font:600 .55em Figtree,sans-serif;color:var(--mut);margin-left:.4em;white-space:nowrap}
 .who-s{align-self:center;font-size:.9rem;opacity:.85}
 .btn.big{font-size:1.15rem;padding:1em 2em}
-.pnav{position:sticky;top:57px;z-index:19;display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px;padding:10px 3vw;background:#fff;border-bottom:1px solid var(--line)}
-.pnav button{position:relative;display:grid;justify-items:center;gap:0;border:2px solid var(--line);background:var(--mint);border-radius:14px;padding:.55em .4em;cursor:pointer;font-family:Figtree,sans-serif}
-.pnav button span{font-size:1.5rem;line-height:1.2}.pnav button b{font-size:.95rem}.pnav button em{font-style:normal;font-size:.75rem;color:var(--mut)}
-.pnav .on{background:var(--green);border-color:var(--green);color:#fff}.pnav .on em{color:#cfe3d6}
-.pnav i{position:absolute;top:4px;right:8px;background:var(--comb);color:#fff;border-radius:99px;font-style:normal;font-size:.72rem;padding:1px 7px}
-.snav{position:sticky;top:57px;z-index:18;background:#fff;border-bottom:1px solid var(--line)}
-.pnav+.snav{top:calc(57px + 82px)}
-.snav .crumb{display:flex;gap:12px;align-items:center;flex-wrap:wrap;padding:8px 3vw 0}.snav .crumb select{width:auto;padding:.3em .6em}
-.snav .tabs{border:0;padding:8px 3vw 10px}.snav .tabs button{border:1.5px solid var(--line);background:var(--mint)}.snav .tabs .on{border-color:var(--green)}
 .tiles{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:16px;margin:18px 0}
 .tile{position:relative;display:grid;gap:2px;text-align:left;align-content:start;background:#fff;border:2px solid var(--line);border-radius:var(--r);padding:20px;cursor:pointer;font-family:Figtree,sans-serif;color:var(--ink);transition:transform .15s,border-color .15s}
 .tile:hover{transform:translateY(-3px);border-color:var(--green)}.tile .ico{font-size:2.4rem;line-height:1.2}.tile b{font-size:1.2rem;font-family:"Bricolage Grotesque",Figtree,sans-serif}.tile em{font-style:normal;color:var(--green);font-weight:600;font-size:.95rem}.tile small{color:var(--mut);font-size:.88rem;margin-top:4px}
@@ -178,11 +169,35 @@ input,select,textarea{min-height:46px}
 .empty-note{text-align:center;padding:18px;color:var(--mut)}
 .filters{border-color:var(--green)}
 .tile,.farmcard,.pnav button,.chips button,.tabs button,.btn{touch-action:manipulation}
+@media print{.nav,.pnav,.snav,.noprint,.chips,.rangebar,.savebar{display:none!important}body{background:#fff}.card{break-inside:avoid;border-color:#ccc}}
+
+/* layout: sidebar on desktop (scrolls on its own), bottom bar on phones; nothing sticks at the top */
+.shell{display:grid;grid-template-columns:230px 1fr;min-height:100vh;align-items:start}
+.side{position:sticky;top:0;height:100vh;overflow-y:auto;background:var(--green);color:#fff;display:flex;flex-direction:column;gap:6px;padding:16px 12px}
+.side .logo{display:block;padding:6px 8px 14px;font-size:1.25rem;color:#fff}
+.side .pn{position:relative;display:grid;gap:0;text-align:left;border:0;background:transparent;color:#fff;border-radius:12px;padding:.7em .9em;cursor:pointer;font-family:Figtree,sans-serif}
+.side .pn span{display:none}.side .pn b{font-size:1rem}.side .pn em{font-style:normal;font-size:.78rem;color:#cfe3d6}
+.side .pn:hover{background:rgba(255,255,255,.1)}.side .pn.on{background:var(--yolk);color:var(--ink)}.side .pn.on em{color:#5a4300}
+.side .pn i{position:absolute;top:8px;right:10px;background:var(--comb);color:#fff;border-radius:99px;font-style:normal;font-size:.72rem;padding:1px 7px}
+.side .pn .ic{display:inline;margin-right:8px}
+.side .sfoot{margin-top:auto;display:grid;gap:8px;padding-top:14px;border-top:1px solid rgba(255,255,255,.2)}.side .sfoot .btn{text-align:center}
+.mtop{display:none}
+.main{min-width:0}
+.snav{background:#fff;border-bottom:1px solid var(--line)}
+.snav .crumb{display:flex;gap:12px;align-items:center;flex-wrap:wrap;padding:10px 4vw 0}.snav .crumb select{width:auto;min-height:38px;padding:.3em .6em}
+.snav .tabs{display:flex;flex-wrap:wrap;overflow:visible;border:0;padding:8px 4vw 12px;gap:6px}
+.snav .tabs button{border:1.5px solid var(--line);background:var(--mint);padding:.45em .9em;font-size:.9rem}
+.snav .tabs button.on{background:var(--green);border-color:var(--green);color:#fff}
+.admin .wrap{max-width:1250px;padding-top:20px}
 @media(max-width:800px){
   body{font-size:16px}
-  .pnav{position:fixed;top:auto;bottom:0;left:0;right:0;grid-template-columns:repeat(4,1fr);gap:4px;padding:6px 6px calc(6px + env(safe-area-inset-bottom));box-shadow:0 -6px 20px rgba(18,58,43,.15);border-top:1px solid var(--line);border-bottom:0}
-  .pnav button{padding:.35em .1em;border-width:1.5px}.pnav button span{font-size:1.4rem}.pnav button b{font-size:.62rem;line-height:1.15;text-align:center}.pnav button em{display:none}
-  .pnav+.snav{top:57px}.admin .wrap{padding-bottom:110px}.savebar{bottom:84px}
-  .who-s{display:none}
+  .shell{display:block}
+  .mtop{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:10px 4vw;background:var(--green);color:#fff}.mtop .logo{color:#fff;font-size:1.1rem}
+  .side{position:fixed;top:auto;bottom:0;left:0;right:0;height:auto;z-index:30;flex-direction:row;gap:4px;padding:6px 6px calc(6px + env(safe-area-inset-bottom));box-shadow:0 -6px 20px rgba(18,58,43,.2);overflow:visible}
+  .side .logo,.side .sfoot{display:none}
+  .side .pn{flex:1;justify-items:center;text-align:center;padding:.35em .1em}.side .pn span{display:block;font-size:1.4rem;line-height:1.2}.side .pn .ic{display:none}.side .pn b{font-size:.62rem;line-height:1.15}.side .pn em{display:none}
+  .snav .tabs{flex-wrap:nowrap;overflow-x:auto}.snav .tabs button{white-space:nowrap}
+  .admin .wrap{padding-bottom:110px}.savebar{bottom:84px}
 }
-@media print{.nav,.pnav,.snav,.noprint,.chips,.rangebar,.savebar{display:none!important}body{background:#fff}.card{break-inside:avoid;border-color:#ccc}}
+@media print{.side,.mtop,.snav,.noprint,.chips,.rangebar,.savebar{display:none!important}.shell{display:block}body{background:#fff}.card{break-inside:avoid;border-color:#ccc}}
+.periodbar{margin:6px 0 12px}.periodbar small{display:block}.monthpick{margin-bottom:10px}

@@ -12,8 +12,9 @@ try {
   }
 } catch {}
 const e = import.meta.env;
+const P = (n) => `${e.BASE_URL || "/"}photos/${n}.jpg`;
 export const FARM = {
-  name: e.VITE_FARM_NAME || "Kesariya Farms",
+  name: e.VITE_FARM_NAME || "Eggester",
   tagline: "Fresh farm eggs in bulk trays for shops, hotels, bakeries and caterers",
   headline: "Fresh eggs by the tray. Wholesale rates.",
   about: "We buy day-old chicks, raise them on a balanced feed programme and collect eggs by hand every morning. Eggs are graded, packed in trays of 30 and delivered in bulk to shops, hotels, bakeries and caterers.",
@@ -31,10 +32,10 @@ export const FARM = {
   upiId: e.VITE_UPI_ID || "",
   razorpayKey: e.VITE_RAZORPAY_KEY_ID || "",
   supabaseUrl: e.VITE_SUPABASE_URL || "",
+  // real photos of the farm live in /public/photos (replace the files to change them)
   photos: {
-    hero: "https://images.unsplash.com/photo-1500382017468-9049fed747ef?auto=format&fit=crop&w=1200&q=70",
-    hens: "https://images.unsplash.com/photo-1548550023-2bdb3c5beed7?auto=format&fit=crop&w=900&q=70",
-    eggs: "https://images.unsplash.com/photo-1506976785307-8732e854ad03?auto=format&fit=crop&w=900&q=70",
+    hero: P("shed"), hens: P("cages"), eggs: P("tray"),
+    gallery: [["shed", "Our laying shed"], ["cages", "Hens at feed time"], ["cages2", "Morning light in the shed"], ["tray", "A full tray of 30 fresh eggs"], ["stack1", "Eggs packed in trays"], ["stack2", "Trays ready for delivery"]].map(([k, t]) => ({ src: P(k), title: t })),
   },
 };
 export const SEED_PRODUCTS = [

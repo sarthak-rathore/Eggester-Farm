@@ -1,4 +1,4 @@
-# Kesariya Farms: shop + farm management (phases 1 and 2)
+# Eggester: shop + farm management (phases 1 and 2)
 
 - Customer shop: `/`  (basket, accounts, checkout, order tracking, invoices)
 - Owner dashboard: `/#/admin`

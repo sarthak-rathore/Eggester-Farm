@@ -115,13 +115,13 @@ export default function Shop({ products, orders, setOrders, setProducts }) {
     <>
       <header className="nav">
         <a href="#/" className="logo">🥚 {FARM.name}</a>
-        <nav><a href="#products">Shop</a><a href="#about">Our farm</a><a href="#faq">Help</a><a href="#contact">Visit</a>
+        <nav><a href="#products">Shop</a><a href="#about">Our farm</a><a href="#gallery">Photos</a><a href="#faq">Help</a><a href="#contact">Visit</a>
           {user ? <a className="btn sm ghost" href="#/account">{user.name.split(" ")[0]}</a> : <button className="btn sm ghost" onClick={() => setView("auth")}>Log in</button>}
           <button className="btn sm" onClick={() => setView("cart")}>Basket{count ? ` (${count})` : ""}</button></nav>
       </header>
 
       {FARM.announcement && <div className="banner">{FARM.announcement}</div>}
-      <section className="hero" onPointerMove={move}>
+      <section className="hero" onPointerMove={move} style={{ backgroundImage: `linear-gradient(100deg,rgba(10,36,27,.92) 0%,rgba(10,36,27,.72) 45%,rgba(10,36,27,.35) 100%),url(${FARM.photos.hero})`, backgroundSize: "cover", backgroundPosition: "center" }}>
         <div className="eggs" aria-hidden="true">
           {[["60%", "56%", 120, 0.4, 60, "0s"], ["72%", "10%", 170, 0.8, 120, "-2s"], ["88%", "60%", 90, 0.3, 40, "-4s"], ["54%", "76%", 70, 0.6, 90, "-1s"], ["58%", "6%", 60, 0.5, 70, "-3s"]].map(([l, t, s, z, d, dl], i) => (
             <div key={i} className="eggw" style={{ left: l, top: t, "--d": d + "px", "--z": z * 100 + "px" }}><div className="egg" style={{ "--s": s + "px", "--dl": dl }} /></div>
@@ -161,6 +161,11 @@ export default function Shop({ products, orders, setOrders, setProducts }) {
           <div className="stats"><div><b>{Math.floor(S.pool / TRAY)}</b><span>trays ready now</span></div><div><b>10 trays</b><span>minimum order</span></div><div><b>6 AM</b><span>daily collection</span></div></div>
         </div>
         <div className="photos"><Photo cls="ph a" src={FARM.photos.hens} alt="Hens at the farm" /><Photo cls="ph b" src={FARM.photos.eggs} alt="Fresh eggs" /><Photo cls="ph c" src={FARM.photos.hero} alt="Farm fields" /></div>
+      </section>
+
+      <section id="gallery" className="sec">
+        <h2>From our farm</h2><p className="muted">Real photos from the {FARM.name} shed and packing area.</p>
+        <div className="gallery">{FARM.photos.gallery.map((g) => <figure key={g.src}><Photo src={g.src} alt={g.title} /><figcaption>{g.title}</figcaption></figure>)}</div>
       </section>
 
       <section id="faq" className="sec faq">

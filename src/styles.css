@@ -201,3 +201,7 @@ input,select,textarea{min-height:46px}
 }
 @media print{.side,.mtop,.snav,.noprint,.chips,.rangebar,.savebar{display:none!important}.shell{display:block}body{background:#fff}.card{break-inside:avoid;border-color:#ccc}}
 .periodbar{margin:6px 0 12px}.periodbar small{display:block}.monthpick{margin-bottom:10px}
+.gallery{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:16px;margin-top:18px}
+.gallery figure{margin:0;border-radius:var(--r);overflow:hidden;background:#fff;border:1px solid var(--line)}
+.gallery img{width:100%;aspect-ratio:4/3;object-fit:cover;display:block}.gallery figcaption{padding:10px 14px;font-weight:600;font-size:.92rem}
+.ph{object-fit:cover}

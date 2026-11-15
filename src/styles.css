@@ -205,3 +205,32 @@ input,select,textarea{min-height:46px}
 .gallery figure{margin:0;border-radius:var(--r);overflow:hidden;background:#fff;border:1px solid var(--line)}
 .gallery img{width:100%;aspect-ratio:4/3;object-fit:cover;display:block}.gallery figcaption{padding:10px 14px;font-weight:600;font-size:.92rem}
 .ph{object-fit:cover}
+
+/* ===== smooth motion (switched off for people who prefer reduced motion) ===== */
+@keyframes fadeUp{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
+@keyframes fadeIn{from{opacity:0}to{opacity:1}}
+@keyframes pop{0%{transform:scale(.96);opacity:0}100%{transform:none;opacity:1}}
+@keyframes shimmer{0%{background-position:-400px 0}100%{background-position:400px 0}}
+.page{animation:fadeUp .35s cubic-bezier(.2,.7,.2,1) both}
+.tiles>*,.farmgrid>*,.kpis>*{animation:fadeUp .4s cubic-bezier(.2,.7,.2,1) both}
+.tiles>*:nth-child(2),.farmgrid>*:nth-child(2),.kpis>*:nth-child(2){animation-delay:.05s}.tiles>*:nth-child(3),.farmgrid>*:nth-child(3),.kpis>*:nth-child(3){animation-delay:.1s}
+.tiles>*:nth-child(4),.farmgrid>*:nth-child(4),.kpis>*:nth-child(4){animation-delay:.15s}.tiles>*:nth-child(n+5),.farmgrid>*:nth-child(n+5),.kpis>*:nth-child(n+5){animation-delay:.2s}
+.card{transition:box-shadow .25s,border-color .25s}
+.btn,.chips button,.tabs button,.side .pn,.tile,.farmcard,.seg button{transition:transform .15s,background-color .2s,border-color .2s,color .2s,box-shadow .2s}
+.btn:active,.tile:active,.farmcard:active,.chips button:active,.tabs button:active,.side .pn:active{transform:scale(.97)}
+.btn:focus-visible,.tile:focus-visible,.farmcard:focus-visible,.pn:focus-visible,.tabs button:focus-visible,.chips button:focus-visible,input:focus-visible,select:focus-visible{outline:3px solid #F5B82E;outline-offset:2px}
+.sect[open] .form{animation:fadeIn .3s ease both}
+.okmsg,.out,.alert,.line{animation:fadeIn .3s ease both}
+.errbox{max-width:520px;margin:40px auto;text-align:center;animation:pop .3s ease both}.errbox .row{justify-content:center}
+.skel{display:grid;gap:14px;padding:24px 4vw;max-width:1250px;margin:0 auto}
+.skel i{display:block;height:88px;border-radius:var(--r);background:linear-gradient(90deg,#e8efe9 25%,#f4f8f5 37%,#e8efe9 63%);background-size:800px 100%;animation:shimmer 1.3s infinite linear}
+.skel i:first-child{height:44px;width:40%}
+.reveal{opacity:0;transform:translateY(20px);transition:opacity .6s ease,transform .6s cubic-bezier(.2,.7,.2,1)}.reveal.in{opacity:1;transform:none}
+.setup ol{list-style:none;margin:10px 0 0;padding:0;display:grid;gap:10px;counter-reset:s}
+.setup li{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;padding:12px 14px;border:1.5px dashed var(--line);border-radius:12px;counter-increment:s}
+.setup li::before{content:counter(s);flex:none;width:30px;height:30px;border-radius:50%;background:var(--green);color:var(--yolk);display:grid;place-items:center;font-weight:800}
+.setup li span{flex:1;min-width:160px}.setup li.done{opacity:.6;border-style:solid;background:var(--mint)}
+.otpbox{font:800 1.8rem "Bricolage Grotesque",monospace;letter-spacing:.5em;text-align:center}
+img{content-visibility:auto}
+html{scroll-behavior:smooth}
+@media(prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important;scroll-behavior:auto!important}.reveal{opacity:1;transform:none}}

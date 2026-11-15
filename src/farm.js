@@ -1,6 +1,6 @@
 import { useMemo } from "react";
-import { useLS, uid } from "./store.js";
-import { SEED_PRODUCTS } from "./config.js";
+import { useLS, uid, setKey, localYmd } from "./store.js";
+import { SEED_PRODUCTS, DEMO } from "./config.js";
 
 export const TRAY = 30;
 export const EXP_CATS = ["Feed / Raw Materials", "Chicks / Birds Purchase", "Medicines & Vaccines", "Electricity & Water", "Labor Salary", "Transport", "Trays, Boxes & Packaging", "Repairs & Maintenance", "Miscellaneous"];
@@ -11,7 +11,8 @@ export const RAW_DEFAULT = [
   { id: "r5", name: "Wheat Bran", unit: "kg" }, { id: "r6", name: "Calcium (Limestone / Grit)", unit: "kg" }, { id: "r7", name: "DCP (Phosphorus)", unit: "kg" }, { id: "r8", name: "Mineral Mix", unit: "kg" },
   { id: "r9", name: "Vitamins", unit: "kg" }, { id: "r10", name: "Salt", unit: "kg" }, { id: "r11", name: "Oil", unit: "ltr" },
 ];
-export const RECIPE_DEFAULT = [{ id: "rc1", name: "Sample layer mix (edit to your own recipe)", feedType: "ft3", lines: [{ itemId: "r1", kg: 55 }, { itemId: "r3", kg: 22 }, { itemId: "r4", kg: 9 }, { itemId: "r6", kg: 9 }, { itemId: "r7", kg: 1.5 }, { itemId: "r10", kg: 0.3 }, { itemId: "r8", kg: 0.5 }, { itemId: "r9", kg: 0.25 }] }];
+const DEMO_RECIPES = [{ id: "rc1", name: "Sample layer mix (edit to your own recipe)", feedType: "ft3", lines: [{ itemId: "r1", kg: 55 }, { itemId: "r3", kg: 22 }, { itemId: "r4", kg: 9 }, { itemId: "r6", kg: 9 }, { itemId: "r7", kg: 1.5 }, { itemId: "r10", kg: 0.3 }, { itemId: "r8", kg: 0.5 }, { itemId: "r9", kg: 0.25 }] }];
+export const RECIPE_DEFAULT = DEMO ? DEMO_RECIPES : [];
 export const NOTIF_DEFAULT = { feedDays: 7, trayLow: 20, boxLow: 20, emptyTrayLow: 100, mortality: true, remind: true };
 export const LAY_AGE = 126; // days: hens older than 18 weeks are counted as laying
 export const DEFAULT_TYPES = [
@@ -19,7 +20,8 @@ export const DEFAULT_TYPES = [
   { id: "ft2", name: "Grower", protein: 16, energy: 2750 },
   { id: "ft3", name: "Layer", protein: 17, energy: 2700 },
 ];
-const ymd = (t) => new Date(t).toISOString().slice(0, 10);
+const ymd = (t) => new Date(t).toISOString().slice(0, 10); // only for adding days to a plain date string
+const nowYmd = () => localYmd();
 export const addDays = (s, n) => ymd(new Date(s + "T00:00:00Z").getTime() + n * 864e5);
 const sum = (a, f) => a.reduce((x, y) => x + (+f(y) || 0), 0);
 const by = (arr, kf, vf) => { const m = {}; arr.forEach((x) => { const k = kf(x); m[k] = (m[k] || 0) + (+vf(x) || 0); }); return m; };
@@ -95,7 +97,7 @@ export function rawAvgPrice(D) {
 
 /* ---------- per-batch performance ---------- */
 export function batchStats(b, D) {
-  const today = ymd(Date.now());
+  const today = nowYmd();
   const L = D.logs.filter((l) => l.batchId === b.id);
   const died = sum(L, (l) => l.deaths), culled = sum(L, (l) => l.culled);
   const alive = Math.max(0, (+b.count || 0) - died - culled);
@@ -114,7 +116,7 @@ export function analyze(D, batchId = "", farmId = "") {
   const feed = [...D.feed, ...mix.map((m) => ({ id: m.id, date: m.date, farmId: m.farmId, batchId: m.batchId, feedType: m.feedType, kg: m.kg, cost: m.cost, made: true }))];
   const perBox = +boxCfg.perBox || PER_BOX;
   const lowFeedDays = +notif.feedDays || 7, lowTrays = notif.trayLow ?? 20, lowBoxes = notif.boxLow ?? boxCfg.alert ?? 20, lowEmpty = notif.emptyTrayLow ?? 100;
-  const today = ymd(Date.now());
+  const today = nowYmd();
   const bOf = Object.fromEntries(batches.map((b) => [b.id, b]));
   const effFarm = farmId || (batchId ? bOf[batchId]?.farmId || "" : "");
   const fb = batches.filter((b) => (!batchId || b.id === batchId) && (!farmId || b.farmId === farmId));
@@ -257,8 +259,8 @@ export function ledger(D) {
 
 /* ---------- demo data: 3 farms ---------- */
 export function seedDemo(withDemoUser = true) {
-  const put = (k, v) => { localStorage.setItem(k, JSON.stringify(v)); dispatchEvent(new CustomEvent("kf-ls", { detail: k })); };
-  const today = ymd(Date.now()); const ago = (n) => addDays(today, -n); const rnd = (a, b) => a + Math.random() * (b - a);
+  const put = (k, v) => setKey(k, v);
+  const today = nowYmd(); const ago = (n) => addDays(today, -n); const rnd = (a, b) => a + Math.random() * (b - a);
   const farms = [{ id: "f1", name: "Farm 1 · Kesariya", location: "Kesariya" }, { id: "f2", name: "Farm 2 · Motihari", location: "Motihari" }, { id: "f3", name: "Farm 3 · Bettiah", location: "Bettiah" }];
   const mkB = (id, farmId, name, days, count, cost) => ({ id, farmId, name, breed: "White layer (day-old chicks)", date: ago(days), count, chickCost: cost, ageDays: 1, supplier: "Sunrise Hatchery", status: "Active", note: "" });
   const batches = [mkB("b1", "f1", "Batch A", 190, 500, 38), mkB("b2", "f1", "Batch B", 60, 300, 40), mkB("b3", "f2", "Batch C", 150, 400, 39), mkB("b4", "f3", "Batch D", 100, 350, 40)];

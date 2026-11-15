@@ -12,21 +12,24 @@ try {
   }
 } catch {}
 const e = import.meta.env;
-const P = (n) => `${e.BASE_URL || "/"}photos/${n}.jpg`;
+/* DEMO MODE. VITE_DEMO_MODE=off (or false / 0 / no) removes every piece of sample data and turns on OTP login for the owner.
+   Not set = demo on, so a fresh download works out of the box. The old VITE_SHOW_DEMO_LOGINS=false still works. */
+const dm = String(e.VITE_DEMO_MODE ?? (e.VITE_SHOW_DEMO_LOGINS === "false" ? "off" : "on")).trim().toLowerCase();
+export const DEMO = !["off", "false", "0", "no"].includes(dm);
+export const DEMO_OWNER = { email: "admin@eggester.demo", password: "Admin@123" }; // only ever used in demo mode
+const P = (n) => `${e.BASE_URL || "/"}photos/${n}.webp`;
 export const FARM = {
   name: e.VITE_FARM_NAME || "Eggester",
   tagline: "Fresh farm eggs in bulk trays for shops, hotels, bakeries and caterers",
   headline: "Fresh eggs by the tray. Wholesale rates.",
   about: "We buy day-old chicks, raise them on a balanced feed programme and collect eggs by hand every morning. Eggs are graded, packed in trays of 30 and delivered in bulk to shops, hotels, bakeries and caterers.",
   announcement: "",
-  phone: e.VITE_FARM_PHONE || "+91 98765 43210",
-  whatsapp: e.VITE_FARM_WHATSAPP || "919876543210",
-  email: e.VITE_FARM_EMAIL || "hello@kesariyafarms.in",
-  address: e.VITE_FARM_ADDRESS || "Kesariya Road, East Champaran, Bihar 845438",
+  phone: e.VITE_FARM_PHONE || (DEMO ? "+91 98765 43210" : ""),
+  whatsapp: e.VITE_FARM_WHATSAPP || (DEMO ? "919876543210" : ""),
+  email: e.VITE_FARM_EMAIL || (DEMO ? "hello@eggester.demo" : ""),
+  address: e.VITE_FARM_ADDRESS || (DEMO ? "Kesariya Road, East Champaran, Bihar 845438" : ""),
   hours: "Open daily, 6 AM to 8 PM",
-  adminEmail: e.VITE_ADMIN_EMAIL || "admin@kesariyafarms.in",
-  pin: e.VITE_ADMIN_PASSWORD || "Admin@123",
-  demo: e.VITE_SHOW_DEMO_LOGINS !== "false", // set to "false" before going live
+  demo: DEMO,
   deliveryFee: +(e.VITE_DELIVERY_FEE || 150),
   freeAbove: +(e.VITE_FREE_DELIVERY_ABOVE || 5000),
   upiId: e.VITE_UPI_ID || "",
@@ -38,11 +41,12 @@ export const FARM = {
     gallery: [["shed", "Our laying shed"], ["cages", "Hens at feed time"], ["cages2", "Morning light in the shed"], ["tray", "A full tray of 30 fresh eggs"], ["stack1", "Eggs packed in trays"], ["stack2", "Trays ready for delivery"]].map(([k, t]) => ({ src: P(k), title: t })),
   },
 };
-export const SEED_PRODUCTS = [
+const DEMO_PRODUCTS = [
   // eggs = eggs per unit sold; moq = minimum trays per order; tiers = "trays:price per tray" bulk prices
   { id: "p1", name: "Farm eggs, standard tray (30)", unit: "tray", eggs: 30, price: 210, mrp: 230, moq: 10, tiers: "50:205,100:200,200:195", emoji: "🥚", desc: "Everyday white eggs, graded and packed in trays of 30." },
   { id: "p2", name: "Large eggs, premium tray (30)", unit: "tray", eggs: 30, price: 235, mrp: 255, moq: 10, tiers: "50:230,100:225", emoji: "🥚", desc: "Larger, heavier eggs for hotels and bakeries." },
 ];
+export const SEED_PRODUCTS = DEMO ? DEMO_PRODUCTS : []; // live mode starts with no products: the owner adds his own
 
 // Owner-edited farm details (Admin > Account > Farm details) override the defaults above.
 try {

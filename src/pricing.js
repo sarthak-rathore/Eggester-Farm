@@ -1,12 +1,13 @@
-import { useLS, inr } from "./store.js";
-import { FARM } from "./config.js";
+import { useLS, inr, today } from "./store.js";
+import { FARM, DEMO } from "./config.js";
 
-export const SEED_COUPONS = [
+const DEMO_COUPONS = [
   { id: "c1", code: "WELCOME5", label: "5% off your first bulk order (up to ₹500)", type: "percent", value: 5, minOrder: 2000, maxDiscount: 500, auto: "No", visible: "Yes", firstOrderOnly: "Yes", limit: 0, expires: "", active: "Yes" },
   { id: "c2", code: "FREEDEL", label: "Free delivery on orders above ₹3000", type: "freeship", value: 0, minOrder: 3000, maxDiscount: 0, auto: "No", visible: "Yes", firstOrderOnly: "No", limit: 0, expires: "", active: "Yes" },
   { id: "c3", code: "BULK100", label: "₹100 off orders above ₹5000", type: "flat", value: 100, minOrder: 5000, maxDiscount: 0, auto: "Yes", visible: "No", firstOrderOnly: "No", limit: 0, expires: "", active: "Yes" },
 ];
-export const SEED_CHARGES = [{ id: "x1", label: "Packaging", type: "flat", value: 10, active: "Yes" }];
+const DEMO_CHARGES = [{ id: "x1", label: "Packaging", type: "flat", value: 10, active: "Yes" }];
+export const SEED_COUPONS = DEMO ? DEMO_COUPONS : [], SEED_CHARGES = DEMO ? DEMO_CHARGES : []; // live mode starts with no coupons or extra charges
 export const defaultPricing = () => ({ gst: 0, gstMode: "inclusive", gstin: "", minOrder: 0, deliveryFee: FARM.deliveryFee, freeAbove: FARM.freeAbove, cod: true, upi: true, card: true });
 
 export function usePricing() {
@@ -20,7 +21,7 @@ export function usePricing() {
 const r2 = (n) => Math.round(n * 100) / 100;
 export function computeBill({ lines, products, pr, coupons, charges, code, user, orders }) {
   const sub = r2(lines.reduce((a, l) => a + l.price * l.qty, 0));
-  const day = new Date().toISOString().slice(0, 10);
+  const day = today();
   const prior = user ? orders.filter((o) => o.userId === user.id && o.status !== "Cancelled").length : 0;
   const uses = (c) => orders.filter((o) => o.coupon === c.code && o.status !== "Cancelled").length;
   const valid = (c) => c.active !== "No" && (!c.expires || c.expires >= day) && sub >= (+c.minOrder || 0) && (!(+c.limit > 0) || uses(c) < +c.limit) && (c.firstOrderOnly !== "Yes" || (user && prior === 0));

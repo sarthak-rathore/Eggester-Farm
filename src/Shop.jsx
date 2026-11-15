@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
-import { FARM } from "./config.js";
-import { useLS, uid, today, inr } from "./store.js";
-import { hash, salt } from "./auth.js";
+import { FARM, DEMO, DEMO_OWNER } from "./config.js";
+import { useLS, uid, today, inr, localYmd } from "./store.js";
+import { hash, salt, check, lockedFor, failLogin, clearFails } from "./auth.js";
 import { usePricing, computeBill } from "./pricing.js";
 import Bill from "./Bill.jsx";
 import { useStock, makeLines, stepQty, tiers, TRAY } from "./farm.js";
@@ -29,11 +29,16 @@ export function invoice(o) {
 export default function Shop({ products, orders, setOrders, setProducts }) {
   const [cart, setCart] = useLS("kf_cart", {});
   const [users, setUsers] = useLS("kf_users", []);
-  const [pin] = useLS("kf_pin", FARM.pin);
+  const [pin] = useLS("kf_pin", DEMO_OWNER.password);
   const [sid, setSid] = useLS("kf_session", null);
   const user = users.find((u) => u.id === sid && !u.blocked) || null;
   const [view, setView] = useState(null);
   const [wish, setWish] = useLS("kf_wish", {});
+  useEffect(() => { // soft fade-in of each section as it scrolls into view
+    const els = [...document.querySelectorAll(".sec, .grid > *")]; if (!("IntersectionObserver" in window)) return els.forEach((x) => x.classList.add("in"));
+    els.forEach((x) => x.classList.add("reveal")); const io = new IntersectionObserver((es) => es.forEach((e) => { if (e.isIntersecting) { e.target.classList.add("in"); io.unobserve(e.target); } }), { rootMargin: "0px 0px -8% 0px" });
+    els.forEach((x) => io.observe(x)); return () => io.disconnect();
+  }, [products.length]);
   useEffect(() => { const v = sessionStorage.getItem("kf_open"); if (v) { setView(v); sessionStorage.removeItem("kf_open"); } }, []);
   const [q, setQ] = useState(""); const [cat, setCat] = useState("All");
   const [f, setF] = useState({ name: "", phone: "", address: "", note: "" });
@@ -41,7 +46,7 @@ export default function Shop({ products, orders, setOrders, setProducts }) {
   const [mode, setMode] = useState("login"); const [err, setErr] = useState(""); const [af, setAf] = useState({ name: "", phone: "", email: "", password: "" });
   const seeding = useRef(false);
   useEffect(() => {
-    if (!FARM.demo || seeding.current || users.some((u) => u.email === "demo@customer.com")) return;
+    if (!DEMO || seeding.current || users.some((u) => u.email === "demo@customer.com")) return;
     seeding.current = true;
     (async () => {
       const sl = salt();
@@ -49,7 +54,7 @@ export default function Shop({ products, orders, setOrders, setProducts }) {
       setUsers((us) => (us.some((x) => x.email === u.email) ? us : [...us, u]));
       const items = [{ id: "p1", name: "Farm eggs, standard tray (30)", unit: "tray", price: 210, qty: 20, eggs: 30 }];
       const base = { userId: u.id, name: u.name, phone: u.phone, address: u.address, note: "", items, subtotal: 4200, delivery: 150, total: 4360, payMethod: "COD", charges: [{ label: "Packaging", amount: 10 }], discount: 0, coupon: "", gst: 0 };
-      const ago = new Date(Date.now() - 5 * 864e5).toISOString().slice(0, 10);
+      const ago = localYmd(Date.now() - 5 * 864e5);
       setOrders((os) => (os.some((o) => o.id === "DEMO01") ? os : [{ ...base, id: "DEMO02", date: today(), payStatus: "Unpaid", payRef: "", status: "Confirmed" }, { ...base, id: "DEMO01", date: ago, payStatus: "Paid", payRef: "", status: "Delivered" }, ...os]));
     })().catch(() => {}).finally(() => { seeding.current = false; });
   }, [users]);
@@ -92,16 +97,18 @@ export default function Shop({ products, orders, setOrders, setProducts }) {
     e.preventDefault(); setErr("");
     const email = af.email.trim().toLowerCase();
     if (mode === "signup") {
-      if (email === FARM.adminEmail.toLowerCase() || users.some((u) => u.email === email)) return setErr("An account with this email exists. Log in instead.");
+      if ((DEMO && email === DEMO_OWNER.email) || users.some((u) => u.email === email)) return setErr("An account with this email exists. Log in instead.");
       if (af.password.length < 6) return setErr("Use a password of at least 6 characters.");
       const s = salt(); const u = { id: uid(), name: af.name, phone: af.phone, email, salt: s, hash: await hash(af.password, s), address: "", joined: today() };
       setUsers((us) => [...us, u]); setSid(u.id);
     } else {
-      if (email === FARM.adminEmail.toLowerCase() && af.password === pin) {
+      const wait = lockedFor("c:" + email); if (wait) return setErr(`Too many wrong tries. Please wait ${Math.ceil(wait / 60)} minute(s) and try again.`);
+      if (DEMO && email === DEMO_OWNER.email && af.password === pin) {
         sessionStorage.setItem("kf_ok", "1"); setAf({ name: "", phone: "", email: "", password: "" }); setView(null); location.hash = "#/admin"; return;
       }
       const u = users.find((x) => x.email === email);
-      if (!u || u.hash !== (await hash(af.password, u.salt))) return setErr("Email or password is incorrect.");
+      if (!u || !(await check(af.password, u.salt, u.hash))) { failLogin("c:" + email); return setErr("Email or password is incorrect."); }
+      clearFails("c:" + email);
       if (u.blocked) return setErr("This account has been blocked. Please contact the farm.");
       setSid(u.id);
     }
@@ -128,7 +135,7 @@ export default function Shop({ products, orders, setOrders, setProducts }) {
           ))}
         </div>
         <div className="hero-copy">
-          <p className="pill">Wholesale egg supplier · East Champaran</p>
+          <p className="pill">Wholesale egg supplier</p>
           <h1>{FARM.headline}</h1>
           <p className="lead">{FARM.tagline}. Collected by hand every morning, packed in trays of 30 and delivered in bulk.</p>
           <div className="row"><a className="btn" href="#products">Order eggs in bulk</a><a className="btn ghost light" href="#about">See the farm</a></div>
@@ -139,6 +146,7 @@ export default function Shop({ products, orders, setOrders, setProducts }) {
       <section id="products" className="sec">
         <h2>Wholesale egg trays</h2>
         <p className="muted">Sold by the tray of {TRAY} eggs. Minimum order and bulk prices are shown on each product. Order more, pay less per tray.</p>
+        {!shown.length && <p className="empty-note">Our egg prices are being set up. Please call us or check back soon.</p>}
         <div className="grid">
           {shown.map((p) => { const st = S.stockOf(p), tr = tiers(p), n = cart[p.id] || 0; return (
             <article key={p.id} className="pcard" onPointerMove={tilt} onPointerLeave={untilt}>
@@ -158,7 +166,7 @@ export default function Shop({ products, orders, setOrders, setProducts }) {
         <div className="about-txt">
           <h2>A small farm that does one thing well</h2>
           <p>{FARM.about}</p>
-          <div className="stats"><div><b>{Math.floor(S.pool / TRAY)}</b><span>trays ready now</span></div><div><b>10 trays</b><span>minimum order</span></div><div><b>6 AM</b><span>daily collection</span></div></div>
+          <div className="stats"><div><b>{Math.floor(S.pool / TRAY)}</b><span>trays ready now</span></div>{!!shown.length && <div><b>{Math.min(...shown.map((p) => +p.moq || 1))} trays</b><span>minimum order</span></div>}<div><b>Fresh</b><span>collected every morning</span></div></div>
         </div>
         <div className="photos"><Photo cls="ph a" src={FARM.photos.hens} alt="Hens at the farm" /><Photo cls="ph b" src={FARM.photos.eggs} alt="Fresh eggs" /><Photo cls="ph c" src={FARM.photos.hero} alt="Farm fields" /></div>
       </section>
@@ -170,7 +178,7 @@ export default function Shop({ products, orders, setOrders, setProducts }) {
 
       <section id="faq" className="sec faq">
         <h2>Questions, answered</h2>
-        {[["What is the minimum order?", "Each product shows its minimum, usually 10 trays (300 eggs). Larger orders get lower prices per tray."],
+        {[["What is the minimum order?", "Each product shows its minimum number of trays. Larger orders get lower prices per tray."],
           ["How fast do you deliver?", "Orders confirmed before 6 PM are delivered the next morning. Very large orders can be scheduled in advance."],
           ["What does delivery cost?", `${inr(P.pr.deliveryFee)} per order, free above ${inr(P.pr.freeAbove)}.`],
           ["How can I pay?", "Pay cash on delivery" + (FARM.upiId ? ", by UPI" : "") + (FARM.razorpayKey ? ", or by card and net banking online." : ".")],
@@ -181,11 +189,11 @@ export default function Shop({ products, orders, setOrders, setProducts }) {
       <section id="contact" className="sec contact">
         <div>
           <h2>Visit or call us</h2>
-          <p><b>{FARM.name}</b><br />{FARM.address}</p><p>{FARM.hours}</p>
-          <p><a href={`tel:${FARM.phone.replace(/\s/g, "")}`}>{FARM.phone}</a><br /><a href={`mailto:${FARM.email}`}>{FARM.email}</a></p>
-          <a className="btn" href={`https://wa.me/${FARM.whatsapp}`} target="_blank" rel="noreferrer">Chat on WhatsApp</a>
+          <p><b>{FARM.name}</b>{FARM.address && <><br />{FARM.address}</>}</p>{FARM.hours && <p>{FARM.hours}</p>}
+          <p>{FARM.phone && <a href={`tel:${FARM.phone.replace(/\s/g, "")}`}>{FARM.phone}</a>}{FARM.phone && FARM.email && <br />}{FARM.email && <a href={`mailto:${FARM.email}`}>{FARM.email}</a>}</p>
+          {FARM.whatsapp && <a className="btn" href={`https://wa.me/${FARM.whatsapp}`} target="_blank" rel="noreferrer">Chat on WhatsApp</a>}
         </div>
-        <iframe title="Farm location" loading="lazy" src={`https://www.google.com/maps?q=${encodeURIComponent(FARM.address)}&output=embed`} />
+        {FARM.address && <iframe title="Farm location" loading="lazy" referrerPolicy="no-referrer" src={`https://www.google.com/maps?q=${encodeURIComponent(FARM.address)}&output=embed`} />}
       </section>
       <footer><span>© {new Date().getFullYear()} {FARM.name}</span><a href="#/admin">Owner login</a></footer>
 
@@ -218,7 +226,7 @@ export default function Shop({ products, orders, setOrders, setProducts }) {
           <p>Thank you, {done.name}. Total {inr(done.total)}. Payment: {PAYNAME[done.payMethod]}{done.payStatus === "Paid" ? " (paid)" : ""}.</p>
           <div className="row">
             {done.payMethod === "UPI" && <a className="btn" href={upiLink(done)}>Pay {inr(done.total)} with UPI</a>}
-            <a className="btn ghost" target="_blank" rel="noreferrer" href={`https://wa.me/${FARM.whatsapp}?text=${encodeURIComponent(waText(done))}`}>Send order on WhatsApp</a>
+            {FARM.whatsapp && <a className="btn ghost" target="_blank" rel="noreferrer" href={`https://wa.me/${FARM.whatsapp}?text=${encodeURIComponent(waText(done))}`}>Send order on WhatsApp</a>}
             <button className="btn ghost" onClick={() => invoice(done)}>Invoice</button>
           </div>
           <p className="muted">We will call you to confirm delivery. {user ? "Track this order in your account." : "Create an account next time to track orders."}</p>
@@ -231,9 +239,9 @@ export default function Shop({ products, orders, setOrders, setProducts }) {
               <label>Phone number<input required type="tel" value={af.phone} onChange={(e) => setAf({ ...af, phone: e.target.value })} /></label></>}
             <label>Email<input required type="email" value={af.email} onChange={(e) => setAf({ ...af, email: e.target.value })} /></label>
             <label>Password<input required type="password" value={af.password} onChange={(e) => setAf({ ...af, password: e.target.value })} /></label>
-            {mode === "login" && FARM.demo && <p className="hint">Demo customer: <b>demo@customer.com</b> / <b>Demo@123</b> <button type="button" className="link" onClick={() => setAf({ ...af, email: "demo@customer.com", password: "Demo@123" })}>Fill in</button></p>}
-            {mode === "login" && FARM.demo && <p className="hint">Demo owner: <b>{FARM.adminEmail}</b> / <b>{pin}</b> <button type="button" className="link" onClick={() => setAf({ ...af, email: FARM.adminEmail, password: pin })}>Fill in</button></p>}
-            {mode === "login" && !FARM.demo && <p className="muted">Farm owner? Log in here with your owner email and password to open the dashboard.</p>}
+            {mode === "login" && DEMO && <p className="hint">Demo customer: <b>demo@customer.com</b> / <b>Demo@123</b> <button type="button" className="link" onClick={() => setAf({ ...af, email: "demo@customer.com", password: "Demo@123" })}>Fill in</button></p>}
+            {mode === "login" && DEMO && <p className="hint">Demo owner: <b>{DEMO_OWNER.email}</b> / <b>{pin}</b> <button type="button" className="link" onClick={() => setAf({ ...af, email: DEMO_OWNER.email, password: pin })}>Fill in</button></p>}
+            {mode === "login" && !DEMO && <p className="muted">Farm owner? Use <a href="#/admin">Owner login</a>.</p>}
             {err && <p className="out" role="alert">{err}</p>}
             <button className="btn">{mode === "login" ? "Log in" : "Create account"}</button>
             <button type="button" className="link" onClick={() => { setMode(mode === "login" ? "signup" : "login"); setErr(""); }}>{mode === "login" ? "New here? Create an account" : "Already have an account? Log in"}</button>

@@ -1,29 +1,29 @@
-import { useState, useEffect, useCallback } from "react";
-const read = (k, i) => { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : i; } catch { return i; } };
+import { useSyncExternalStore, useCallback } from "react";
+/* One shared cache for everything saved on this device. Every screen reads the same parsed copy, so a change shows up everywhere at once,
+   also in other open tabs (storage event). Nothing is parsed twice. */
+const cache = new Map(), subs = new Map();
+const parse = (k, i) => { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : i; } catch { return i; } };
+const get = (k, init) => { if (!cache.has(k)) cache.set(k, parse(k, init)); return cache.get(k); };
+const emit = (k) => subs.get(k)?.forEach((f) => f());
+export function setKey(k, v) { cache.set(k, v); try { localStorage.setItem(k, JSON.stringify(v)); } catch { /* storage full or blocked */ } emit(k); }
+export function removeKey(k) { cache.delete(k); try { localStorage.removeItem(k); } catch {} emit(k); }
+export function reloadAll() { cache.clear(); [...subs.keys()].forEach(emit); }
+if (typeof addEventListener === "function") addEventListener("storage", (e) => { if (e.key === null) return reloadAll(); cache.delete(e.key); emit(e.key); });
 export function useLS(k, init) {
-  const [v, setV] = useState(() => read(k, init));
-  useEffect(() => {
-    const f = (e) => { if (e.key === k) setV(read(k, init)); };
-    const g = (e) => { if (e.detail === k) setV(read(k, init)); };
-    addEventListener("storage", f);
-    addEventListener("kf-ls", g);
-    return () => { removeEventListener("storage", f); removeEventListener("kf-ls", g); };
-  }, [k]);
-  const set = useCallback((fn) => setV((p) => {
-    const n = typeof fn === "function" ? fn(p) : fn;
-    try { localStorage.setItem(k, JSON.stringify(n)); } catch {}
-    queueMicrotask(() => dispatchEvent(new CustomEvent("kf-ls", { detail: k })));
-    return n;
-  }), [k]);
+  const sub = useCallback((f) => { let s = subs.get(k); if (!s) subs.set(k, (s = new Set())); s.add(f); return () => s.delete(f); }, [k]);
+  const v = useSyncExternalStore(sub, () => get(k, init), () => init);
+  const set = useCallback((fn) => { const p = get(k, init); setKey(k, typeof fn === "function" ? fn(p) : fn); }, [k]);
   return [v, set];
 }
 export const uid = () => Math.random().toString(36).slice(2, 9);
-export const today = () => new Date().toISOString().slice(0, 10);
+const p2 = (n) => String(n).padStart(2, "0");
+export const localYmd = (t = Date.now()) => { const d = new Date(t); return `${d.getFullYear()}-${p2(d.getMonth() + 1)}-${p2(d.getDate())}`; }; // the farmer's own date, not UTC
+export const today = () => localYmd();
 export const inr = (n) => { const v = Math.round((+n || 0) * 100) / 100; return "₹" + v.toLocaleString("en-IN", { minimumFractionDigits: v % 1 ? 2 : 0, maximumFractionDigits: 2 }); };
 export function demo() {
   const t = [], p = [], now = Date.now();
   for (let i = 120; i >= 0; i--) {
-    const d = new Date(now - i * 864e5).toISOString().slice(0, 10);
+    const d = localYmd(now - i * 864e5);
     const eggs = Math.round(380 + Math.random() * 60);
     p.push({ id: uid(), date: d, eggs, broken: Math.round(Math.random() * 8), birds: 450 });
     t.push({ id: uid(), date: d, type: "revenue", category: "Egg sales", amount: Math.round(eggs * 7.4 * (0.9 + Math.random() * 0.2)), note: "" });

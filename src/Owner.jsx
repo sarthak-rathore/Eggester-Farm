@@ -1,15 +1,17 @@
 import React, { useState, useEffect, lazy, Suspense } from "react";
-import { FARM } from "./config.js";
+import { FARM, DEMO, DEMO_OWNER } from "./config.js";
 import { useLS, today, inr } from "./store.js";
 import { useFarmData, useAnalysis } from "./farm.js";
-import { hash } from "./auth.js";
-import { Alerts, nf } from "./charts.jsx";
-import { Tile } from "./ui.jsx";
+import { check, lockedFor, failLogin, clearFails } from "./auth.js";
+import { sendOtp, verifyOtp, checkSession, otpMessage, sessionExp } from "./otp.js";
+import { Alerts, nf } from "./kit.jsx";
+import { Tile, Loading } from "./ui.jsx";
+import ErrorBoundary from "./ErrorBoundary.jsx";
 
 const named = (n) => lazy(() => import("./FarmSections.jsx").then((m) => ({ default: m[n] })));
 const S = { overview: named("FarmOverview"), production: named("Production"), sales: named("Sales"), expenses: named("Expenses"), stock: named("Stock"), feed: named("FeedMgmt"), mortality: named("Mortality"), health: named("Health"), purchases: named("Purchases"), staff: named("StaffLabor"), tasks: named("Tasks"), documents: named("Documents") };
 const Today = lazy(() => import("./TodayUpdate.jsx")), Overall = lazy(() => import("./Overview.jsx")), Reports = lazy(() => import("./Reports.jsx")), Settings = lazy(() => import("./Settings.jsx"));
-const Lz = ({ children }) => <Suspense fallback={<p className="muted" style={{ padding: 20 }}>Loading…</p>}>{children}</Suspense>;
+const Lz = ({ children }) => <Suspense fallback={<Loading />}>{children}</Suspense>;
 
 const PRIMARY = [["farms", "🏡", "My Farms", "मेरे फार्म"], ["overview", "📊", "Overall Farm Overview", "पूरे फार्म का हाल"], ["reports", "📈", "Reports & Analytics", "रिपोर्ट"], ["settings", "⚙️", "Settings", "सेटिंग"]];
 const SECONDARY = [["overview", "🏠", "Overview"], ["today", "✏️", "Today's Update"], ["production", "🥚", "Production"], ["sales", "💰", "Sales"], ["expenses", "🧾", "Expenses"], ["stock", "📦", "Stock Management"], ["feed", "🌾", "Feed Management"], ["mortality", "🐔", "Mortality"], ["health", "💉", "Health & Medicine"], ["purchases", "🛍️", "Purchases"], ["staff", "👷", "Staff & Labor"], ["tasks", "⏰", "Tasks & Reminders"], ["documents", "🗂️", "Documents & Records"], ["reports", "📈", "Reports & Analytics"]];
@@ -18,30 +20,65 @@ const ALLOW = { Owner: { p: ["farms", "overview", "reports", "settings"], s: SEC
 export const go = (p) => (location.hash = "#/admin" + (p ? "/" + p : ""));
 const useHash = () => { const [h, setH] = useState(location.hash); useEffect(() => { const f = () => { setH(location.hash); scrollTo(0, 0); }; addEventListener("hashchange", f); return () => removeEventListener("hashchange", f); }, []); return h; };
 
+const CHANNEL = String(import.meta.env.VITE_OTP_CHANNEL || "email").toLowerCase() === "sms" ? "sms" : "email";
+const SS = sessionStorage;
+const startRole = () => { // an owner login only counts if it carries a valid, unexpired server session (demo mode needs none)
+  if (SS.getItem("kf_ok") !== "1") return "";
+  const r = SS.getItem("kf_role") || "Owner";
+  if (r === "Owner" && !DEMO && sessionExp(SS.getItem("kf_tok")) < Date.now()) return "";
+  return r;
+};
+
 export default function Owner(d) {
-  const h = useHash(); const [pin] = useLS("kf_pin", FARM.pin); const [team] = useLS("kf_team", []);
-  const [role, setRole] = useState(sessionStorage.getItem("kf_ok") === "1" ? sessionStorage.getItem("kf_role") || "Owner" : "");
-  const [who, setWho] = useState(sessionStorage.getItem("kf_who") || "");
-  const [mode, setMode] = useState("owner"); const [f, setF] = useState({ id: "", pw: "" }); const [err, setErr] = useState("");
-  const login = async (e) => {
+  const h = useHash(); const [pin] = useLS("kf_pin", DEMO_OWNER.password); const [team] = useLS("kf_team", []);
+  const [role, setRole] = useState(startRole); const [who, setWho] = useState(SS.getItem("kf_who") || "");
+  const [mode, setMode] = useState("owner"); const [err, setErr] = useState(""); const [busy, setBusy] = useState(false);
+  const [f, setF] = useState(DEMO ? { id: DEMO_OWNER.email, pw: pin } : { id: "", pw: "" }); // demo mode: owner login is filled in for you
+  const [otp, setOtp] = useState({ step: "id", token: "", code: "", to: "", wait: 0 });
+  const done = (r, w, tok) => { SS.setItem("kf_ok", "1"); SS.setItem("kf_role", r); SS.setItem("kf_who", w); tok ? SS.setItem("kf_tok", tok) : SS.removeItem("kf_tok"); setRole(r); setWho(w); setF({ id: "", pw: "" }); setErr(""); setOtp({ step: "id", token: "", code: "", to: "", wait: 0 }); };
+  const logout = () => { ["kf_ok", "kf_role", "kf_who", "kf_tok"].forEach((k) => SS.removeItem(k)); setRole(""); setF(DEMO ? { id: DEMO_OWNER.email, pw: pin } : { id: "", pw: "" }); };
+  useEffect(() => { // re-check a saved owner login with the server now and then, and sign out when it has expired
+    if (DEMO || role !== "Owner") return;
+    let dead = false; const tok = SS.getItem("kf_tok");
+    const run = async () => { if (sessionExp(tok) < Date.now()) return logout(); const r = await checkSession(tok); if (!dead && r.ok === false && r.error !== "network" && r.status !== 500) logout(); else if (!dead && r.ok && r.ok === false) logout(); };
+    run(); const t = setInterval(run, 10 * 60e3); return () => { dead = true; clearInterval(t); };
+  }, [role]);
+  useEffect(() => { if (otp.wait <= 0) return; const t = setTimeout(() => setOtp((o) => ({ ...o, wait: o.wait - 1 })), 1000); return () => clearTimeout(t); }, [otp.wait]);
+
+  const login = async (e) => { // demo owner, or manager / worker with phone + PIN
     e.preventDefault(); setErr("");
-    const done = (r, w) => { sessionStorage.setItem("kf_ok", "1"); sessionStorage.setItem("kf_role", r); sessionStorage.setItem("kf_who", w); setRole(r); setWho(w); setF({ id: "", pw: "" }); };
-    if (mode === "owner") { if (f.id.trim().toLowerCase() === FARM.adminEmail.toLowerCase() && f.pw === pin) return done("Owner", "Owner"); return setErr("Email or password is not correct. Please try again."); }
-    const u = team.find((x) => x.phone === f.id.replace(/\s/g, "") && x.active !== "No");
-    if (!u || u.hash !== (await hash(f.pw, u.salt))) return setErr("Phone number or PIN is not correct. Please try again.");
-    done(u.role, u.name);
+    const key = mode === "owner" ? "o:demo" : "s:" + f.id.replace(/\s/g, ""), wait = lockedFor(key);
+    if (wait) return setErr(`Too many wrong tries. Please wait ${Math.ceil(wait / 60)} minute(s).`);
+    if (mode === "owner") { if (f.id.trim().toLowerCase() === DEMO_OWNER.email && f.pw === pin) { clearFails(key); return done("Owner", "Owner"); } failLogin(key); return setErr("Email or password is not correct. Please try again."); }
+    setBusy(true); const u = team.find((x) => x.phone === f.id.replace(/\s/g, "") && x.active !== "No"); const ok = u && (await check(f.pw, u.salt, u.hash)); setBusy(false);
+    if (!ok) { failLogin(key); return setErr("Phone number or PIN is not correct. Please try again."); }
+    clearFails(key); done(u.role, u.name);
   };
-  const logout = () => { ["kf_ok", "kf_role", "kf_who"].forEach((k) => sessionStorage.removeItem(k)); setRole(""); };
+  const ask = async (e) => { e?.preventDefault(); setErr(""); if (!f.id.trim()) return; setBusy(true); const r = await sendOtp(f.id.trim()); setBusy(false); if (!r.ok) return setErr(otpMessage(r)); setOtp({ step: "code", token: r.token, code: "", to: r.to, wait: 30 }); };
+  const confirm = async (e) => { e.preventDefault(); setErr(""); setBusy(true); const r = await verifyOtp(otp.token, otp.code.trim()); setBusy(false); if (!r.ok) { if (["expired", "used", "locked"].includes(r.error)) setOtp((o) => ({ ...o, step: "id", code: "" })); return setErr(otpMessage(r)); } done("Owner", "Owner", r.session); };
+
   if (!role) return (
-    <div className="login"><form className="card form" onSubmit={login}>
-      <div className="lg-ico">🥚</div><h2>{FARM.name}</h2><p className="muted">Please log in to open your farm.</p>
-      <div className="seg"><button type="button" className={mode === "owner" ? "on" : ""} onClick={() => { setMode("owner"); setErr(""); }}>Owner</button><button type="button" className={mode === "staff" ? "on" : ""} onClick={() => { setMode("staff"); setErr(""); }}>Manager or worker</button></div>
-      {mode === "owner" ? <label>Email<input type="email" autoFocus autoComplete="email" value={f.id} onChange={(e) => setF({ ...f, id: e.target.value })} /></label>
-        : <label>Phone number<input type="tel" inputMode="numeric" autoFocus value={f.id} onChange={(e) => setF({ ...f, id: e.target.value })} /></label>}
-      <label>{mode === "owner" ? "Password" : "PIN"}<input type="password" autoComplete="current-password" value={f.pw} onChange={(e) => setF({ ...f, pw: e.target.value })} /></label>
-      {err && <p className="out" role="alert">{err}</p>}
-      {FARM.demo && mode === "owner" && <p className="hint">Demo owner: <b>{FARM.adminEmail}</b> / <b>{pin}</b> <button type="button" className="link" onClick={() => setF({ id: FARM.adminEmail, pw: pin })}>Fill in</button></p>}
-      <button className="btn big">Log in</button><a href="#/">Back to the shop</a></form></div>
+    <div className="login">{DEMO || mode === "staff" ? (
+      <form className="card form" onSubmit={login}>
+        <div className="lg-ico">🥚</div><h2>{FARM.name}</h2><p className="muted">Please log in to open your farm.</p>
+        <div className="seg"><button type="button" className={mode === "owner" ? "on" : ""} onClick={() => { setMode("owner"); setErr(""); }}>Owner</button><button type="button" className={mode === "staff" ? "on" : ""} onClick={() => { setMode("staff"); setErr(""); setF({ id: "", pw: "" }); }}>Manager or worker</button></div>
+        {mode === "owner" ? <label>Email<input type="email" autoComplete="email" value={f.id} onChange={(e) => setF({ ...f, id: e.target.value })} /></label>
+          : <label>Phone number<input type="tel" inputMode="numeric" autoFocus value={f.id} onChange={(e) => setF({ ...f, id: e.target.value })} /></label>}
+        <label>{mode === "owner" ? "Password" : "PIN"}<input type="password" autoComplete="current-password" value={f.pw} onChange={(e) => setF({ ...f, pw: e.target.value })} /></label>
+        {err && <p className="out" role="alert">{err}</p>}
+        {DEMO && mode === "owner" && <p className="hint">Demo mode: your login is filled in. Just press Log in. (Turn demo mode off to use OTP login.)</p>}
+        <button className="btn big" disabled={busy}>{busy ? "Please wait…" : "Log in"}</button><a href="#/">Back to the shop</a></form>
+    ) : (
+      <form className="card form" onSubmit={otp.step === "id" ? ask : confirm}>
+        <div className="lg-ico">🥚</div><h2>{FARM.name}</h2><p className="muted">Owner login</p>
+        <div className="seg"><button type="button" className="on">Owner</button><button type="button" onClick={() => { setMode("staff"); setErr(""); setF({ id: "", pw: "" }); }}>Manager or worker</button></div>
+        {otp.step === "id" ? <label>{CHANNEL === "sms" ? "Your mobile number" : "Your email"}<input required autoFocus type={CHANNEL === "sms" ? "tel" : "email"} inputMode={CHANNEL === "sms" ? "numeric" : "email"} autoComplete={CHANNEL === "sms" ? "tel" : "email"} value={f.id} onChange={(e) => setF({ ...f, id: e.target.value })} /></label>
+          : <><p>We sent a 6-digit code to <b>{otp.to}</b>.</p><label>Enter the code<input required autoFocus inputMode="numeric" autoComplete="one-time-code" maxLength={6} pattern="[0-9]{6}" className="otpbox" value={otp.code} onChange={(e) => setOtp({ ...otp, code: e.target.value.replace(/\D/g, "") })} /></label></>}
+        {err && <p className="out" role="alert">{err}</p>}
+        <button className="btn big" disabled={busy || (otp.step === "code" && otp.code.length !== 6)}>{busy ? "Please wait…" : otp.step === "id" ? "Send me a code" : "Log in"}</button>
+        {otp.step === "code" && <p className="muted">{otp.wait > 0 ? `You can ask for a new code in ${otp.wait} seconds.` : <button type="button" className="link" onClick={ask}>Send a new code</button>} · <button type="button" className="link" onClick={() => setOtp({ ...otp, step: "id", code: "" })}>Change {CHANNEL === "sms" ? "number" : "email"}</button></p>}
+        <a href="#/">Back to the shop</a></form>
+    )}</div>
   );
   const A = ALLOW[role] || ALLOW.Viewer;
   const parts = h.replace(/^#\/admin\/?/, "").split("/").filter(Boolean);
@@ -58,7 +95,7 @@ export default function Owner(d) {
       <div className="main">
         <header className="mtop"><a className="logo" href="#/admin">🥚 {FARM.name}</a><button className="btn sm ghost light" onClick={logout}>Log out</button></header>
         {page === "farm" && allowedPage && <FarmBar batchId={batchId} sec={sec} allowed={A.s} />}
-        <main className="wrap">
+        <main className="wrap"><ErrorBoundary resetKey={h}><div key={h} className="page">
           {!allowedPage ? <p className="muted">You do not have permission to open this page.</p>
             : page === "home" ? <Home d={d} who={who} role={role} A={A} />
             : page === "farms" ? <FarmList d={d} />
@@ -66,7 +103,7 @@ export default function Owner(d) {
             : page === "overview" ? <Lz><Overall d={d} /></Lz>
             : page === "reports" ? <><div className="bar"><h2>Reports & Analytics <small className="hi">रिपोर्ट</small></h2></div><Lz><Reports d={d} /></Lz></>
             : page === "settings" ? <Lz><Settings d={d} sub={parts[1]} go={go} /></Lz> : <Home d={d} who={who} role={role} A={A} />}
-        </main>
+        </div></ErrorBoundary></main>
       </div>
     </div>
   );
@@ -92,9 +129,16 @@ function Home({ d, who, role, A: perm }) {
     <>
       <div className="bar"><h2>{hello}, {who === "Owner" ? FARM.name : who} 🙏</h2></div>
       <Alerts list={A.alerts} />
+      {role === "Owner" && (!F.farms.length || !F.batches.length || !d.products.length) && <section className="card setup"><h3>Let's set up your farm <small className="hi">शुरू करें</small></h3>
+        <p className="muted">Three small steps, then you can start entering your day.</p>
+        <ol>
+          <li className={F.farms.length ? "done" : ""}><span>Add your farm (name and place)</span><button className="btn sm" onClick={() => go("settings/farms")}>{F.farms.length ? "✓ Done" : "Add farm"}</button></li>
+          <li className={F.batches.length ? "done" : ""}><span>Add your first batch of birds</span><button className="btn sm" onClick={() => go("settings/farms")} disabled={!F.farms.length}>{F.batches.length ? "✓ Done" : "Add batch"}</button></li>
+          <li className={d.products.length ? "done" : ""}><span>Set your egg price (for sales)</span><button className="btn sm" onClick={() => go("settings/shop")}>{d.products.length ? "✓ Done" : "Add price"}</button></li>
+        </ol></section>}
       {perm.p.includes("farms") && <><h3 className="sh">My Farms <small className="hi">मेरे फार्म</small></h3>
         <div className="farmgrid">{active.map((b) => <BatchCard key={b.id} b={b} A={A} F={F} onOpen={() => go(`farm/${b.id}/${perm.s.includes("overview") ? "overview" : perm.s[0]}`)} />)}</div>
-        {!active.length && <p className="muted">No batch yet. {role === "Owner" ? <button className="link" onClick={() => go("settings/farms")}>Add your first farm and batch</button> : "Ask the owner to add one."}</p>}</>}
+        {!active.length && role !== "Owner" && <p className="muted">No batch yet. Ask the owner to add one.</p>}</>}
       <div className="tiles">
         {perm.p.includes("overview") && <Tile icon="📊" title="Overall Farm Overview" hi="पूरे फार्म का हाल" sub="All farms together: eggs, sales, expenses, profit" onClick={() => go("overview")} />}
         {perm.p.includes("reports") && <Tile icon="📈" title="Reports & Analytics" hi="रिपोर्ट" sub="Day by day, month by month, print or download" onClick={() => go("reports")} />}

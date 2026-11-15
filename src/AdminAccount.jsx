@@ -1,8 +1,9 @@
 import React, { useState } from "react";
-import { FARM } from "./config.js";
-import { useLS } from "./store.js";
+import { FARM, DEMO, DEMO_OWNER } from "./config.js";
+import { useLS, setKey, reloadAll } from "./store.js";
 import { useAnalysis } from "./farm.js";
 
+const SKIP = ["kf_session", "kf_cart", "kf_pin", "kf_tok"]; // never put into (or read from) a backup file
 const ALL_SUB = [["overview", "Overview"], ["profile", "Owner profile"], ["farm", "Farm details"], ["security", "Password & security"], ["backup", "Backup & Restore"], ["setup", "Setup status"]];
 const Msg = ({ m }) => (m ? <p className={m[0] === "e" ? "out" : "okmsg"} role="status">{m.slice(2)}</p> : null);
 
@@ -11,7 +12,7 @@ export default function AdminAccount({ orders, txns, setTxns, setOrders, show })
   const A = useAnalysis(orders, txns);
   const [sub, setSub] = useState(show ? show[0] : "overview");
   const [tickets] = useLS("kf_tickets", []);
-  const [pin, setPin] = useLS("kf_pin", FARM.pin);
+  const [pin, setPin] = useLS("kf_pin", DEMO_OWNER.password);
   const [adm, setAdm] = useLS("kf_admin", { name: "Farm Owner", phone: "" });
   const [a, setA] = useState(adm);
   const [farm, setFarm] = useState({ name: FARM.name, phone: FARM.phone, whatsapp: FARM.whatsapp, email: FARM.email, address: FARM.address, hours: FARM.hours, upiId: FARM.upiId, tagline: FARM.tagline, headline: FARM.headline, announcement: FARM.announcement, about: FARM.about });
@@ -20,12 +21,12 @@ export default function AdminAccount({ orders, txns, setTxns, setOrders, show })
   const F = (o, set, k, l, p = {}) => <label>{l}<input value={o[k] ?? ""} onChange={(e) => set({ ...o, [k]: e.target.value })} {...p} /></label>;
   const attention = [["Orders waiting for confirmation", orders.filter((o) => o.status === "Pending").length, orders.some((o) => o.status === "Pending")], ["Open customer complaints", tickets.filter((t) => t.status === "Open").length, tickets.some((t) => t.status === "Open")], ["Egg trays in stock", A.tot.stockTrays, A.tot.stockTrays < 20], ["Days of feed left", A.tot.daysLeft === null ? "–" : Math.round(A.tot.daysLeft), A.tot.daysLeft !== null && A.tot.daysLeft < 7]];
   const exportData = () => {
-    const o = {}; Object.keys(localStorage).filter((k) => k.startsWith("kf_") && !["kf_session", "kf_cart"].includes(k)).forEach((k) => (o[k] = localStorage.getItem(k)));
-    const l = document.createElement("a"); l.href = URL.createObjectURL(new Blob([JSON.stringify(o)], { type: "application/json" })); l.download = `farm-backup-${new Date().toISOString().slice(0, 10)}.json`; l.click();
+    const o = {}; Object.keys(localStorage).filter((k) => k.startsWith("kf_") && !SKIP.includes(k)).forEach((k) => (o[k] = localStorage.getItem(k)));
+    const l = document.createElement("a"); l.href = URL.createObjectURL(new Blob([JSON.stringify(o)], { type: "application/json" })); l.download = `farm-backup-${localYmd()}.json`; l.click();
   };
   const importData = (e) => {
     const f = e.target.files[0]; if (!f) return; const r = new FileReader();
-    r.onload = () => { try { Object.entries(JSON.parse(r.result)).forEach(([k, v]) => k.startsWith("kf_") && localStorage.setItem(k, v)); alert("Backup restored. The page will reload."); location.reload(); } catch { alert("This file is not a valid backup."); } };
+    r.onload = () => { try { Object.entries(JSON.parse(r.result)).forEach(([k, v]) => k.startsWith("kf_") && typeof v === "string" && !SKIP.includes(k) && localStorage.setItem(k, v)); alert("Backup restored. The page will reload."); location.reload(); } catch { alert("This file is not a valid backup."); } };
     r.readAsText(f);
   };
   const changePw = (e) => {
@@ -48,7 +49,7 @@ export default function AdminAccount({ orders, txns, setTxns, setOrders, show })
 
       {sub === "profile" && <form className="card form grid2" onSubmit={(e) => { e.preventDefault(); setAdm(a); setMsg("s|Profile saved."); }}>
         {F(a, setA, "name", "Your name", { required: true })}{F(a, setA, "phone", "Your phone", { type: "tel" })}
-        <label className="wide">Login email<input value={FARM.adminEmail} disabled /></label>
+        <label className="wide">Owner login<input value={DEMO ? DEMO_OWNER.email + " (demo)" : "A one-time code (OTP) is sent to the owner email or phone saved on the server"} disabled /></label>
         <p className="muted wide">The login email is set with VITE_ADMIN_EMAIL in your Vercel environment variables.</p>
         <div className="row wide"><button className="btn sm">Save profile</button></div><div className="wide"><Msg m={msg} /></div></form>}
 
@@ -64,11 +65,12 @@ export default function AdminAccount({ orders, txns, setTxns, setOrders, show })
         <div className="row wide"><button className="btn sm">Save and update shop</button></div></form>}
 
       {sub === "security" && <>
-        <form className="card form" onSubmit={changePw}><h3>Change password</h3>
+        {DEMO ? <form className="card form" onSubmit={changePw}><h3>Change demo password</h3>
           <label>Current password<input type="password" required value={pw.cur} onChange={(e) => setPw({ ...pw, cur: e.target.value })} /></label>
           <label>New password<input type="password" required value={pw.n} onChange={(e) => setPw({ ...pw, n: e.target.value })} /></label>
           <label>Confirm new password<input type="password" required value={pw.n2} onChange={(e) => setPw({ ...pw, n2: e.target.value })} /></label>
           <Msg m={msg} /><div className="row"><button className="btn sm">Update password</button></div></form>
+          : <section className="card"><h3>Owner login uses OTP</h3><p className="muted">There is no password to remember or leak. Each time you log in, a 6-digit code is sent to your email or phone. To change where the code goes, update the owner email or phone in your hosting settings (see README).</p></section>}
         <section className="card"><h3>Session</h3><p className="muted">Signed in on this device. Log out when you are done, especially on a shared computer.</p>
           <button className="btn sm ghost" onClick={() => { sessionStorage.removeItem("kf_ok"); location.hash = "#/"; location.reload(); }}>Log out</button></section>
       </>}
@@ -77,11 +79,11 @@ export default function AdminAccount({ orders, txns, setTxns, setOrders, show })
         <section className="card"><h3>Backup your data</h3><p className="muted">All your farm records are stored in this phone or computer. Download a backup every week and keep the file safe (for example send it to yourself on WhatsApp or email).</p><button className="btn sm" onClick={exportData}>Download backup</button></section>
         <section className="card"><h3>Restore from backup</h3><p className="muted">Choose a backup file you downloaded earlier. This replaces the data in this browser.</p><input type="file" accept="application/json" onChange={importData} /></section>
         <section className="card danger"><h3>Clear all records</h3><p className="muted">Deletes all batches, daily records, purchases, stock changes, money records and orders. Download a backup first.</p>
-          <button className="btn sm ghost" onClick={() => { if (confirm("Delete all money, production and order records? This cannot be undone.")) { ["kf_batches", "kf_logs", "kf_feed", "kf_adj", "kf_exp", "kf_boxes", "kf_boxadj", "kf_rawbuy", "kf_mix", "kf_trays", "kf_trayadj", "kf_tasks", "kf_docs"].forEach((k) => { localStorage.setItem(k, "[]"); dispatchEvent(new CustomEvent("kf-ls", { detail: k })); }); setTxns([]); setOrders([]); } }}>Clear all records</button></section>
+          <button className="btn sm ghost" onClick={() => { if (confirm("Delete all money, production and order records? This cannot be undone.")) { ["kf_batches", "kf_logs", "kf_feed", "kf_adj", "kf_exp", "kf_boxes", "kf_boxadj", "kf_rawbuy", "kf_mix", "kf_trays", "kf_trayadj", "kf_tasks", "kf_docs"].forEach((k) => setKey(k, [])); setTxns([]); setOrders([]); } }}>Clear all records</button></section>
       </>}
 
       {sub === "setup" && <section className="card"><h3>Setup status</h3>
-        {[["Razorpay card payments", FARM.razorpayKey, "VITE_RAZORPAY_KEY_ID"], ["UPI payments", FARM.upiId, "VITE_UPI_ID"], ["Database (phase 3)", FARM.supabaseUrl, "VITE_SUPABASE_URL"], ["Custom owner password", FARM.pin !== "Admin@123" ? "set" : "", "VITE_ADMIN_PASSWORD"]].map(([l, v, k]) => <p key={k} className="muted">{v ? "✓" : "○"} {l}: {v ? "connected" : `not set, add ${k} in your environment variables`}</p>)}</section>}
+        {[["Razorpay card payments", FARM.razorpayKey, "VITE_RAZORPAY_KEY_ID"], ["Live mode (no demo data, OTP login)", DEMO ? "" : "on", "VITE_DEMO_MODE=off"], ["UPI payments", FARM.upiId, "VITE_UPI_ID"], ["Database (phase 3)", FARM.supabaseUrl, "VITE_SUPABASE_URL"], ] .map(([l, v, k]) => <p key={k} className="muted">{v ? "✓" : "○"} {l}: {v ? "connected" : `not set, add ${k} in your environment variables`}</p>)}</section>}
     </>
   );
 }

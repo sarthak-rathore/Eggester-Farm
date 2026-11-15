@@ -1,9 +1,9 @@
 import React, { useState } from "react";
-import { inr } from "./store.js";
+import { inr, today } from "./store.js";
 
 export default function Bill({ bill, coupons, code, setCode, onCheckout, cta = "Checkout" }) {
   const [v, setV] = useState("");
-  const day = new Date().toISOString().slice(0, 10);
+  const day = today();
   const apply = (c) => { const x = c.trim().toUpperCase(); if (x) { setCode(x); setV(""); } };
   const chips = coupons.filter((c) => c.visible === "Yes" && c.auto !== "Yes" && c.active !== "No" && (!c.expires || c.expires >= day));
   const manual = bill.offer && bill.offer.auto !== "Yes" && (code || "").trim().toUpperCase() === (bill.offer.code || "").toUpperCase();

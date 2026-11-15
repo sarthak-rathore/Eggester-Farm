@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useFarmData, useAnalysis, TRAY, EXP_CATS, FEED_CAT, MED_CAT, LABOR_CAT, PACK_CAT, rawStock } from "./farm.js";
 import { inr, today, uid } from "./store.js";
-import { Kpi, Alerts, nf } from "./charts.jsx";
+import { Kpi, Alerts, nf } from "./kit.jsx";
 import { Msg, Num, Qty, Sect } from "./ui.jsx";
 import { WUNITS, toBase, kgText } from "./units.js";
 import { n, addExpense, addPurchase, makeFeed, makeSaleOrder, unitPrice, saleEggs } from "./actions.js";
@@ -110,7 +110,8 @@ export default function TodayUpdate({ batchId, orders, setOrders, txns, products
 
       <Sect n="4" title="Sales today" hint="Eggs sold. Boxes, trays and eggs go down automatically">
         <div className="wide">
-          {!sales.length && <p className="muted">No sale added. Tap “Add a sale” if you sold eggs today.</p>}
+          {!products.length && <p className="hint">To record sales, first add your egg price in Settings → Shop Prices.</p>}
+          {!!products.length && !sales.length && <p className="muted">No sale added. Tap “Add a sale” if you sold eggs today.</p>}
           {sales.map((s) => { const p = products.find((q) => q.id === s.productId) || prod, up = unitPrice(p, s.unit, s.qty, perBox), tot = n(s.qty) * (n(s.price) || up); return (
             <div className="line3" key={s.id}>
               <label>Customer<select value={s.custId} onChange={(e) => upSale(s.id, "custId", e.target.value)}>{customers.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}</select></label>
@@ -122,7 +123,7 @@ export default function TodayUpdate({ batchId, orders, setOrders, txns, products
               <p className="muted">{n(s.qty) > 0 ? `${nf(saleEggs(s, perBox))} eggs = ${nf(saleEggs(s, perBox) / TRAY, 1)} trays${s.unit === "Box" ? ` · ${nf(n(s.qty))} boxes` : ""} · Total ${inr(tot)}` : ""}</p>
               <button type="button" className="link" onClick={() => setSales(sales.filter((q) => q.id !== s.id))}>Remove</button>
             </div>); })}
-          <button type="button" className="btn sm ghost" onClick={addSale}>+ Add a sale</button>
+          {!!products.length && <button type="button" className="btn sm ghost" onClick={addSale}>+ Add a sale</button>}
         </div>
       </Sect>
 

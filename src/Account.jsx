@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { FARM } from "./config.js";
 import { useLS, uid, today, inr, useUser } from "./store.js";
-import { hash, salt } from "./auth.js";
+import { hash, salt, check } from "./auth.js";
 import { STEPS, PAYNAME, invoice } from "./Shop.jsx";
 import { usePricing, computeBill } from "./pricing.js";
 import Bill from "./Bill.jsx";
@@ -117,7 +117,7 @@ function Track({ c }) {
         {o.status === "Cancelled" ? <p className="out">This order was cancelled. Call us if this is a mistake.</p> :
           <ol className="timeline">{STEPS.map((s, i) => <li key={s} className={i < idx || o.status === "Delivered" ? "done" : i === idx ? "now" : ""}><b>{s}</b><span>{info[i]}</span></li>)}</ol>}
         <p className="muted">Delivering to: {o.address}<br />Total: {inr(o.total)} · {PAYNAME[o.payMethod]}</p>
-        <div className="row"><a className="btn sm" href={`tel:${FARM.phone.replace(/\s/g, "")}`}>Call the farm</a><a className="btn sm ghost" target="_blank" rel="noreferrer" href={`https://wa.me/${FARM.whatsapp}?text=${encodeURIComponent("Hello, about my order " + o.id)}`}>WhatsApp us</a></div>
+        <div className="row">{FARM.phone && <a className="btn sm" href={`tel:${FARM.phone.replace(/\s/g, "")}`}>Call the farm</a>}{FARM.whatsapp && <a className="btn sm ghost" target="_blank" rel="noreferrer" href={`https://wa.me/${FARM.whatsapp}?text=${encodeURIComponent("Hello, about my order " + o.id)}`}>WhatsApp us</a>}</div>
       </section>
     </>
   );
@@ -205,7 +205,7 @@ function Profile({ c }) {
     const email = p.email.trim().toLowerCase();
     if (email !== u.email) {
       if (c.users.some((x) => x.email === email && x.id !== u.id)) return setMsg("e|That email is already used by another account.");
-      if ((await hash(pw, u.salt)) !== u.hash) return setMsg("e|Enter your current password to change your email.");
+      if (!(await check(pw, u.salt, u.hash))) return setMsg("e|Enter your current password to change your email.");
     }
     c.update({ name: p.name, phone: p.phone, email, wa: p.wa, offers: p.offers, upi: p.upi }); setPw(""); setMsg("s|Profile saved.");
   };
@@ -232,14 +232,14 @@ function Security({ c }) {
   const [f, setF] = useState({ cur: "", n: "", n2: "" }); const [msg, setMsg] = useState(""); const [del, setDel] = useState("");
   const change = async (e) => {
     e.preventDefault();
-    if ((await hash(f.cur, u.salt)) !== u.hash) return setMsg("e|Your current password is incorrect.");
+    if (!(await check(f.cur, u.salt, u.hash))) return setMsg("e|Your current password is incorrect.");
     if (f.n.length < 6) return setMsg("e|Use at least 6 characters for the new password.");
     if (f.n !== f.n2) return setMsg("e|The new passwords do not match.");
     const s = salt(); c.update({ salt: s, hash: await hash(f.n, s) }); setF({ cur: "", n: "", n2: "" }); setMsg("s|Password updated.");
   };
   const remove = async (e) => {
     e.preventDefault();
-    if ((await hash(del, u.salt)) !== u.hash) return setMsg("e|Password is incorrect. Your account was not deleted.");
+    if (!(await check(del, u.salt, u.hash))) return setMsg("e|Password is incorrect. Your account was not deleted.");
     if (!confirm("Delete your account permanently? Past orders stay with the farm for its records.")) return;
     c.setUsers((us) => us.filter((x) => x.id !== u.id)); c.setSid(null); location.hash = "#/";
   };
@@ -277,7 +277,7 @@ function Support({ c }) {
         <div className="row wide"><button className="btn sm">Send request</button></div><div className="wide"><Msg m={ok} /></div></form>
       <section className="card"><h3>Your requests</h3>{!mineT.length && <p className="muted">Requests you send will appear here with our replies.</p>}
         {mineT.map((t) => <div className="order-row" key={t.id}><div className="bar"><b>{t.type} · {t.id}</b><Badge s={t.status} /></div><p className="muted">{t.date}{t.orderId ? ` · Order #${t.orderId}` : ""}</p><p>{t.message}</p>{t.reply && <p className="reply"><b>Reply from {FARM.name}:</b> {t.reply}</p>}</div>)}</section>
-      <section className="card"><h3>Contact us directly</h3><p className="muted">{FARM.hours}</p><div className="row"><a className="btn sm" href={`tel:${FARM.phone.replace(/\s/g, "")}`}>{FARM.phone}</a><a className="btn sm ghost" target="_blank" rel="noreferrer" href={`https://wa.me/${FARM.whatsapp}`}>WhatsApp</a><a className="btn sm ghost" href={`mailto:${FARM.email}`}>Email</a></div></section>
+      <section className="card"><h3>Contact us directly</h3><p className="muted">{FARM.hours}</p><div className="row">{FARM.phone && <a className="btn sm" href={`tel:${FARM.phone.replace(/\s/g, "")}`}>{FARM.phone}</a>}{FARM.whatsapp && <a className="btn sm ghost" target="_blank" rel="noreferrer" href={`https://wa.me/${FARM.whatsapp}`}>WhatsApp</a>}{FARM.email && <a className="btn sm ghost" href={`mailto:${FARM.email}`}>Email</a>}</div></section>
     </>
   );
 }

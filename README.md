@@ -37,8 +37,28 @@ The farmer only fills **Today's Update** (eggs, birds, feed, sales, expenses, pu
 - Sales can be marked "money pending" and show under Sales > Money to receive.
 - Every saved line can be deleted from "Already saved" at the bottom of Today's Update, and stock and money correct themselves.
 
-### Logins
-Owner: email + password. Manager / worker / viewer: phone + PIN (Settings > Who Can Log In). Manager = everything except Settings, Worker = Today's Update and Tasks only, Viewer = Overview and Reports only. These are checked in the browser, like the rest of phase 2.
+### Demo mode and going live
+`VITE_DEMO_MODE` in your environment decides everything:
+- `on` (default): sample farms, orders, prices, coupons and customers are created, and the owner login is filled in for you. Just press Log in.
+- `off`: **all sample data is removed automatically** the next time the site opens (real customer accounts are kept), no sample data is ever created again, the shop starts without prices, and the owner logs in with a **one-time code (OTP)**. A first-run checklist (add farm, add batch, set egg price) guides the owner.
+
+Photos and the farm name are not demo data and stay.
+
+### Owner OTP login (demo off)
+The code is created and checked on the server (`/api` functions on Vercel), so no password or secret is ever inside the website files. Add these in Vercel > Settings > Environment Variables, then redeploy:
+- `VITE_DEMO_MODE=off`
+- `OTP_SECRET` (32+ random characters, for example `openssl rand -hex 32`)
+- Email codes: `OTP_CHANNEL=email`, `ADMIN_EMAIL`, `RESEND_API_KEY`, `OTP_FROM_EMAIL` (a sender on a domain you verified at resend.com)
+- SMS codes: `OTP_CHANNEL=sms`, `VITE_OTP_CHANNEL=sms`, `ADMIN_PHONE` (10 digits), `FAST2SMS_API_KEY`
+
+Codes are 6 digits, work once for 5 minutes, lock after 5 wrong tries, and a stranger cannot learn which email or number is the owner's. A login lasts 12 hours. If a setting is missing the owner only sees "Login is not set up yet"; the exact missing names are in Vercel > Logs. To try OTP on your own computer use `vercel dev` (plain `npm run dev` has no server functions).
+Manager and worker logins (phone + PIN) are separate and are checked on the device.
+
+### Safety and speed
+- Security headers, caching and a strict content policy are in `vercel.json`. Passwords and PINs are stored with PBKDF2 (old accounts still work). 5 wrong logins lock that login for 5 minutes. Backups never contain passwords. Errors show friendly messages only; technical details go to the browser console / server log.
+- The shop loads about 70 KB of code; charts load only when a chart screen opens. Photos are WebP with long caching. Motion is smooth and is turned off automatically for people who prefer reduced motion.
+- `npm test` runs 17 checks: every owner screen opens, demo data vanishes when demo is off, OTP flow, and a full day of entries updating stock, sales and money.
+- Records are saved on the device and update instantly on every open screen and tab. Seeing the same live data on several phones needs the online database (phase 3).
 
 ### Upgrading from the earlier version
 The first time this version opens, farm records in the browser are reset to fresh demo data (customer accounts are kept). Download a backup first if you entered real records.

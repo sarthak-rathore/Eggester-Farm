@@ -3,7 +3,7 @@ import { FARM } from "./config.js";
 import { useFarmData, upsert } from "./farm.js";
 import { useLS, uid, today, inr } from "./store.js";
 import { hash, salt } from "./auth.js";
-import { nf } from "./charts.jsx";
+import { nf } from "./kit.jsx";
 import { Tile, Msg, Num } from "./ui.jsx";
 import Crud from "./Crud.jsx";
 const AdminAccount = lazy(() => import("./AdminAccount.jsx"));
@@ -34,7 +34,7 @@ export default function Settings({ d, sub, go }) {
     farms: <>
       <Crud title="Your farms" rows={F.farms} blank={{ name: "", location: "", address: "" }} {...upsert(F.setFarms)} fields={[{ k: "name", label: "Farm name" }, { k: "location", label: "Village or town", req: false }, { k: "address", label: "Full address", req: false }]} />
       <Crud title="Batches (each lot of chicks)" rows={F.batches} blank={{ farmId: F.farms[0]?.id || "", date: today(), count: "", chickCost: "", ageDays: 1, status: "Active", breed: "", supplier: "", note: "" }} {...upsert(F.setBatches)}
-        fields={[{ k: "name", label: "Batch name (e.g. Batch C)" }, { k: "farmId", label: "Farm", opts: F.farms.length ? F.farms.map((f) => ({ v: f.id, l: f.name })) : [{ v: "", l: "Add a farm first" }], fmt: (v) => fn[v] || "–" }, { k: "date", label: "Date chicks came", type: "date" }, { k: "count", label: "How many chicks", type: "number", fmt: nf }, { k: "chickCost", label: "Cost per chick (₹)", type: "number", fmt: inr },
+        fields={[{ k: "name", label: "Batch name (e.g. Batch C)" }, { k: "farmId", label: "Farm", opts: F.farms.length ? F.farms.map((f) => ({ v: f.id, l: f.name })) : [{ v: "", l: "Add a farm first" }], fmt: (v) => fn[v] || "–" }, { k: "date", label: "Date chicks came", type: "date" }, { k: "count", label: "How many chicks", type: "number", fmt: (v) => nf(v) }, { k: "chickCost", label: "Cost per chick (₹)", type: "number", fmt: inr },
           { k: "ageDays", label: "Age of chicks in days", type: "number", req: false }, { k: "breed", label: "Breed", req: false }, { k: "supplier", label: "Bought from", req: false }, { k: "status", label: "Status", opts: [{ v: "Active", l: "Running" }, { v: "Closed", l: "Finished (hide from Today's Update)" }] }, { k: "note", label: "Note", req: false }]} /></>,
     owner: <Lz><AdminAccount {...d} show={["profile", "farm"]} /></Lz>,
     staff: <Crud title="Staff" rows={F.staff} blank={{ name: "", role: "", phone: "", salary: "", farmId: "", active: "Yes" }} {...upsert(F.setStaff)}

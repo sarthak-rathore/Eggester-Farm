@@ -383,7 +383,7 @@ export function Tasks({ batchId, d }) {
 export function Documents({ batchId, d }) {
   const { F } = useCtx(batchId, d); const [p, setP] = useState({ date: today(), title: "", type: "Bill", note: "", file: "", fname: "" }); const [msg, setMsg] = useState("");
   const P = usePeriod(); const rows = newest(F.docs.filter((x) => (!x.batchId || x.batchId === batchId) && inRange(x.date, P.r)));
-  const pick = (e) => { const f = e.target.files[0]; if (!f) return; if (f.size > 300 * 1024) { e.target.value = ""; return setMsg("e|The file is too big (limit 300 KB). Take a smaller photo or add a note instead."); } const r = new FileReader(); r.onload = () => { setP({ ...p, file: r.result, fname: f.name }); setMsg(""); }; r.readAsDataURL(f); };
+  const pick = (e) => { const f = e.target.files[0]; if (!f) return; if (!/^(image\/|application\/pdf$)/.test(f.type)) { e.target.value = ""; return setMsg("e|Please choose a photo or a PDF file."); } if (f.size > 300 * 1024) { e.target.value = ""; return setMsg("e|The file is too big (limit 300 KB). Take a smaller photo or add a note instead."); } const r = new FileReader(); r.onload = () => { setP({ ...p, file: r.result, fname: f.name }); setMsg(""); }; r.readAsDataURL(f); };
   const add = (e) => { e.preventDefault(); F.setDocs((a) => [{ ...p, id: uid(), batchId }, ...a]); setP({ date: today(), title: "", type: "Bill", note: "", file: "", fname: "" }); setMsg("s|Saved."); e.target.reset(); };
   return (
     <>

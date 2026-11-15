@@ -34,3 +34,6 @@ export const Tile = ({ icon, title, hi, sub, onClick, badge, tone }) => (
 );
 
 export const Empty = ({ text }) => <p className="empty-note">{text}</p>;
+
+/* shown while a screen is loading: soft pulsing blocks instead of a blank page */
+export const Loading = () => <div className="skel" aria-busy="true" aria-label="Loading"><i /><i /><i /><i /></div>;

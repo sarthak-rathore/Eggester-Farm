@@ -16,6 +16,10 @@ const e = import.meta.env;
    Not set = demo on, so a fresh download works out of the box. The old VITE_SHOW_DEMO_LOGINS=false still works. */
 const dm = String(e.VITE_DEMO_MODE ?? (e.VITE_SHOW_DEMO_LOGINS === "false" ? "off" : "on")).trim().toLowerCase();
 export const DEMO = !["off", "false", "0", "no"].includes(dm);
+/* CUSTOMER SIDE (customer login, account page, basket and online orders).
+   Off by default: the public page then shows the farm, photos and prices only, with "call or WhatsApp to order".
+   Turn on with VITE_CUSTOMER_MODE=on (or true / 1 / yes). Demo mode always has it on so you can test it. */
+export const CUSTOMERS = DEMO || ["on", "true", "1", "yes"].includes(String(e.VITE_CUSTOMER_MODE ?? "").trim().toLowerCase());
 export const DEMO_OWNER = { email: "admin@eggester.demo", password: "Admin@123" }; // only ever used in demo mode
 const P = (n) => `${e.BASE_URL || "/"}photos/${n}.webp`;
 export const FARM = {
@@ -26,8 +30,10 @@ export const FARM = {
   announcement: "",
   phone: e.VITE_FARM_PHONE || (DEMO ? "+91 98765 43210" : ""),
   whatsapp: e.VITE_FARM_WHATSAPP || (DEMO ? "919876543210" : ""),
-  email: e.VITE_FARM_EMAIL || (DEMO ? "hello@eggester.demo" : ""),
-  address: e.VITE_FARM_ADDRESS || (DEMO ? "Kesariya Road, East Champaran, Bihar 845438" : ""),
+  email: e.VITE_FARM_EMAIL || "Eggesterfarm@gmail.com",
+  address: e.VITE_FARM_ADDRESS || "", // written address (optional). When set, a map preview is shown
+  mapUrl: e.VITE_FARM_MAP_URL || "https://share.google/WX5vdhi9jFhNZUybO",
+  logo: `${e.BASE_URL || "/"}brand/mark.png`, logoFull: `${e.BASE_URL || "/"}brand/logo.png`,
   hours: "Open daily, 6 AM to 8 PM",
   demo: DEMO,
   deliveryFee: +(e.VITE_DELIVERY_FEE || 150),
@@ -48,8 +54,8 @@ export const FARM = {
 };
 const DEMO_PRODUCTS = [
   // eggs = eggs per unit sold; moq = minimum trays per order; tiers = "trays:price per tray" bulk prices
-  { id: "p1", name: "Farm eggs, standard tray (30)", unit: "tray", eggs: 30, price: 210, mrp: 230, moq: 10, tiers: "50:205,100:200,200:195", emoji: "🥚", desc: "Everyday white eggs, graded and packed in trays of 30." },
-  { id: "p2", name: "Large eggs, premium tray (30)", unit: "tray", eggs: 30, price: 235, mrp: 255, moq: 10, tiers: "50:230,100:225", emoji: "🥚", desc: "Larger, heavier eggs for hotels and bakeries." },
+  { id: "p1", name: "Farm eggs, standard tray (30)", unit: "tray", eggs: 30, price: 210, mrp: 230, moq: 10, tiers: "50:205,100:200,200:195", photo: P("tray-detail"), desc: "Everyday white eggs, graded and packed in trays of 30." },
+  { id: "p2", name: "Large eggs, premium tray (30)", unit: "tray", eggs: 30, price: 235, mrp: 255, moq: 10, tiers: "50:230,100:225", photo: P("stack-close"), desc: "Larger, heavier eggs for hotels and bakeries." },
 ];
 export const SEED_PRODUCTS = DEMO ? DEMO_PRODUCTS : []; // live mode starts with no products: the owner adds his own
 

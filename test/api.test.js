@@ -16,7 +16,7 @@ describe("OTP functions", () => {
     const ok = res(); await verify(req({ token: r1.body.token, otp: codeFrom() }), ok); expect(ok.code).toBe(200); expect(ok.body.session).toBeTruthy();
     const again = res(); await verify(req({ token: r1.body.token, otp: codeFrom() }), again); expect(again.code).toBe(401); // single use
     const s = res(); await session(req({ session: ok.body.session }), s); expect(s.body.ok).toBe(true);
-    const t = res(); await session(req({ session: ok.body.session.replace(/.$/, "A") }), t); expect(t.body.ok).toBe(false); // tampered
+    const t = res(); await session(req({ session: ok.body.session.slice(0, -1) + (ok.body.session.endsWith("A") ? "B" : "A") }), t); expect(t.body.ok).toBe(false); // tampered
   });
   it("a stranger gets the same answer but no message is sent", async () => {
     const send = (await import("../api/send-otp.js")).default, verify = (await import("../api/verify-otp.js")).default;

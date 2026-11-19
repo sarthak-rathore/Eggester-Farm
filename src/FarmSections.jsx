@@ -4,6 +4,7 @@ import { useFarmData, useAnalysis, aggregate, ledger, upsert, TRAY, EXP_CATS, FE
 import { inr, today, uid } from "./store.js";
 import { COL, PIE, ChartCard, Kpi, Alerts, nf, RangeFilter, rangeOf, inRange } from "./charts.jsx";
 import { Msg, Num, Qty, Empty } from "./ui.jsx";
+import { Ia } from "./adminIcons.jsx";
 import { WUNITS, toBase, kgText, qtyText } from "./units.js";
 import { n, addExpense, addPurchase, makeFeed } from "./actions.js";
 import Crud from "./Crud.jsx";
@@ -37,7 +38,7 @@ export function FarmOverview({ batchId, d }) {
   const day = aggregate(A.rows, "day"), st = A.perBatch.find((x) => x.b.id === batchId) || {};
   return (
     <>
-      <div className={"todaybox " + (done ? "done" : "todo")}><div><b>{done ? "✓ Today's update is saved" : "Today's update is not done yet"}</b><br /><span>{done ? "You can add sales or expenses anytime." : "Enter today's eggs, feed, birds, sales and expenses."}</span></div><button className="btn" onClick={() => go(`farm/${batchId}/today`)}>{done ? "Add more" : "Enter today's update"}</button></div>
+      <div className={"todaybox " + (done ? "done" : "todo")}><div><b><span className="ih">{done && <Ia n="check" s={18} />}{done ? "Today's update is saved" : "Today's update is not done yet"}</span></b><br /><span>{done ? "You can add sales or expenses anytime." : "Enter today's eggs, feed, birds, sales and expenses."}</span></div><button className="btn" onClick={() => go(`farm/${batchId}/today`)}>{done ? "Add more" : "Enter today's update"}</button></div>
       <Alerts list={A.alerts} />
       <h3 className="sh">{batch.name} at a glance</h3>
       <div className="kpis">
@@ -91,7 +92,7 @@ export function Sales({ batchId, d }) {
           fields={[{ k: "date", label: "Date", type: "date" }, { k: "name", label: "Customer", req: false }, { k: "items", label: "What was sold", noForm: true, fmt: itemsFmt }, { k: "total", label: "Amount (₹)", type: "number", fmt: inr }, { k: "payStatus", label: "Money received?", opts: [{ v: "Paid", l: "Yes, received" }, { v: "Unpaid", l: "No, pending" }] }]} />
       </>}
       {sub === "owed" && <section className="card"><h3>Customers who have not paid yet</h3>
-        {!owing.length && <Empty text="Nobody owes you money. 🎉" />}
+        {!owing.length && <Empty icon="ok" text="Nobody owes you money." />}
         {owing.map((o) => <div className="line" key={o.id}><span><b>{o.name}</b> · {o.date}<br /><small className="muted">{itemsFmt(o.items)}</small></span><span><b>{inr(o.total)}</b> <button className="btn sm" onClick={() => d.setOrders((os) => os.map((x) => (x.id === o.id ? { ...x, payStatus: "Paid" } : x)))}>Money received</button></span></div>)}</section>}
       {sub === "online" && <Crud title="Orders from the online shop" rows={online} blank={{}} noAdd {...upsert(d.setOrders)}
         fields={[{ k: "date", label: "Date", type: "date" }, { k: "name", label: "Customer" }, { k: "phone", label: "Phone" }, { k: "items", label: "Items", noForm: true, fmt: (v) => (v || []).map((i) => `${i.name} × ${i.qty}`).join(", ") }, { k: "total", label: "Total", type: "number", fmt: inr }, { k: "payStatus", label: "Paid?", opts: ["Unpaid", "Paid", "Refunded"] }, { k: "status", label: "Order status", opts: ["Pending", "Confirmed", "Out for delivery", "Delivered", "Cancelled"] }]} />}
@@ -168,13 +169,13 @@ export function Stock({ batchId, d }) {
     <>
       <p className="muted">Everything here updates by itself from Today's Update. Eggs, trays and boxes are shared by all your farms because they are sold from one place. Feed and raw materials are for this batch's farm.</p>
       <Alerts list={A.alerts.filter((a) => /trays|boxes|Feed/.test(a.text))} />
-      <section className="card"><h3>🥚 Eggs</h3><div className="kpis">
+      <section className="card"><h3 className="ih"><Ia n="egg" s={20} /> Eggs</h3><div className="kpis">
         <Kpi l="Produced (good)" v={nf(t.producedTrays, 1) + " trays"} hint={`${nf(t.eggs - t.broken)} eggs`} /><Kpi l="Sold" v={nf(t.soldTrays, 1) + " trays"} /><Kpi l="Broken" v={nf(t.broken) + " eggs"} t="bad" /><Kpi l="Available now" v={nf(t.stockTrays) + " trays"} t={t.stockTrays < 20 ? "bad" : "good"} hint={`${nf(t.stockEggs)} eggs`} /></div></section>
-      <section className="card"><h3>🐔 Birds</h3><div className="kpis">
+      <section className="card"><h3 className="ih"><Ia n="hen" s={20} /> Birds</h3><div className="kpis">
         <Kpi l="Active" v={nf(t.alive)} t="good" /><Kpi l="Purchased" v={nf(t.purchased)} /><Kpi l="Dead" v={nf(t.died)} t={t.mortPct > 8 ? "bad" : ""} hint={`${nf(t.mortPct, 1)}%`} /><Kpi l="Sold or removed" v={nf(t.culled)} /></div></section>
-      <section className="card"><h3>🌾 Feed</h3><Tbl heads={["Feed", "Made by you", "Bought", "Eaten by birds", "Available"]} rows={A.feedTable.map((x) => [x.name, kgText(x.made), kgText(x.purchased), kgText(x.used), <b>{kgText(x.left)}</b>])} /></section>
-      <section className="card"><h3>🧺 Raw materials</h3><Tbl heads={["Material", "Available"]} rows={F.raw.map((r) => [r.name, <b>{qtyText(rs[r.id] || 0, r.unit)}</b>])} /></section>
-      <section className="card"><h3>📦 Trays and boxes</h3>
+      <section className="card"><h3 className="ih"><Ia n="wheat" s={20} /> Feed</h3><Tbl heads={["Feed", "Made by you", "Bought", "Eaten by birds", "Available"]} rows={A.feedTable.map((x) => [x.name, kgText(x.made), kgText(x.purchased), kgText(x.used), <b>{kgText(x.left)}</b>])} /></section>
+      <section className="card"><h3 className="ih"><Ia n="stock" s={20} /> Raw materials</h3><Tbl heads={["Material", "Available"]} rows={F.raw.map((r) => [r.name, <b>{qtyText(rs[r.id] || 0, r.unit)}</b>])} /></section>
+      <section className="card"><h3 className="ih"><Ia n="box" s={20} /> Trays and boxes</h3>
         <Tbl heads={["", "Empty (ready to use)", "Filled", "Damaged"]} rows={[["Trays (30 eggs each)", <b>{nf(t.trayEmpty)}</b>, `${nf(t.stockTrays)} trays of eggs ready`, nf(t.trayLost)], [`Boxes (${perBox} trays = ${perBox * TRAY} eggs)`, <b>{nf(t.boxStock)}</b>, `${nf(t.boxUsed)} sent out with sales`, nf(t.boxLost)]]} /></section>
       <form className="card form grid2" onSubmit={adjust}><h3 className="wide">Eggs, trays or boxes lost, damaged or found</h3>
         <label>What<select value={adj.what} onChange={(e) => setAdj({ ...adj, what: e.target.value })}><option value="eggs">Eggs</option><option value="trays">Empty trays</option><option value="boxes">Empty boxes</option></select></label>
@@ -263,7 +264,7 @@ export function FeedMgmt({ batchId, d }) {
       {sub === "buy" && <><BuyForm F={F} batch={batch} kind="feed" label="Buy ready-made feed" />
         <section className="card"><h3>Feed you bought</h3><div className="scroll"><table><thead><tr><th>Date</th><th>Feed</th><th>Quantity</th><th>Cost</th><th>From</th><th /></tr></thead><tbody>{newest(F.feed.filter(mine)).map((x) => <tr key={x.id}><td>{x.date}</td><td>{tn[x.feedType]}</td><td>{kgText(x.kg)}</td><td>{inr(x.cost)}</td><td>{x.supplier}</td><td><Del onDo={() => F.setFeed((a) => a.filter((q) => q.id !== x.id))} /></td></tr>)}</tbody></table>{!F.feed.filter(mine).length && <p className="muted">Nothing bought yet.</p>}</div></section></>}
       {sub === "raw" && <>
-        <section className="card"><h3>Raw materials in stock</h3><Tbl heads={["Material", "Available"]} rows={F.raw.map((r) => [r.name, <b>{qtyText(rs[r.id] || 0, r.unit)}</b>])} /><p className="muted">Add your own materials in Settings → Farms. Or ask for “Custom ingredients” below.</p></section>
+        <section className="card"><h3>Raw materials in stock</h3><Tbl heads={["Material", "Available"]} rows={F.raw.map((r) => [r.name, <b>{qtyText(rs[r.id] || 0, r.unit)}</b>])} /><p className="muted">Add your own materials in Settings > Farms. Or ask for “Custom ingredients” below.</p></section>
         <CustomRaw F={F} /><BuyForm F={F} batch={batch} kind="raw" label="Buy raw material" />
         <section className="card"><h3>Raw materials you bought</h3><div className="scroll"><table><thead><tr><th>Date</th><th>Material</th><th>Quantity</th><th>Cost</th><th>From</th><th /></tr></thead><tbody>{newest(F.rawBuy.filter(mine)).map((x) => <tr key={x.id}><td>{x.date}</td><td>{rn[x.itemId]?.name}</td><td>{qtyText(x.qty, rn[x.itemId]?.unit)}</td><td>{inr(x.cost)}</td><td>{x.supplier}</td><td><Del onDo={() => F.setRawBuy((a) => a.filter((q) => q.id !== x.id))} /></td></tr>)}</tbody></table>{!F.rawBuy.filter(mine).length && <p className="muted">Nothing bought yet.</p>}</div></section></>}
       {sub === "recipes" && <Recipes F={F} />}
@@ -286,7 +287,7 @@ export function Mortality({ batchId, d }) {
       <ChartCard title="Deaths per day" hint="Last 30 days"><BarChart data={day}>{G}{X}{Y}<Tooltip /><Bar dataKey="deaths" name="Died" fill={COL.red} radius={[4, 4, 0, 0]} /></BarChart></ChartCard>
       <Period p={P} count={L.length} />
       <section className="card"><h3>Why birds died</h3><Tbl heads={["Reason", "Birds"]} rows={Object.entries(cause).sort((a, b) => b[1] - a[1]).map(([k, v]) => [k, nf(v)])} empty="No deaths recorded." /></section>
-      <section className="card"><h3>Days with deaths</h3><Tbl heads={["Date", "Birds died", "Reason", "Note"]} rows={newest(L).slice(0, 60).map((l) => [l.date, l.deaths, l.cause || "–", l.note || ""])} empty="No deaths recorded." /><p className="muted">Record deaths in Today's Update. To correct an old day, use Production → Daily records.</p></section>
+      <section className="card"><h3>Days with deaths</h3><Tbl heads={["Date", "Birds died", "Reason", "Note"]} rows={newest(L).slice(0, 60).map((l) => [l.date, l.deaths, l.cause || "–", l.note || ""])} empty="No deaths recorded." /><p className="muted">Record deaths in Today's Update. To correct an old day, use Production > Daily records.</p></section>
     </>
   );
 }
@@ -352,7 +353,7 @@ export function StaffLabor({ batchId, d }) {
   return (
     <>
       <div className="kpis"><Kpi l="Workers" v={mine.filter((s) => s.active !== "No").length} /><Kpi l="Paid this month" v={inr(sum(paidAll.filter((e) => e.date.slice(0, 7) === month), (e) => e.amount))} /><Kpi l="Monthly salaries" v={inr(sum(mine.filter((s) => s.active !== "No"), (s) => s.salary))} /></div>
-      <section className="card"><h3>Your workers</h3><Tbl heads={["Name", "Work", "Phone", "Salary", "Paid this month"]} rows={mine.map((s) => [s.name, s.role, s.phone, inr(s.salary), inr(paidBy(s.id))])} empty="No workers added. Add them in Settings → Staff." /></section>
+      <section className="card"><h3>Your workers</h3><Tbl heads={["Name", "Work", "Phone", "Salary", "Paid this month"]} rows={mine.map((s) => [s.name, s.role, s.phone, inr(s.salary), inr(paidBy(s.id))])} empty="No workers added. Add them in Settings > Staff." /></section>
       <form className="card form grid2" onSubmit={save}><h3 className="wide">Pay a salary or wages</h3>
         <label>Who<select value={pay.staffId} onChange={(e) => { const s = F.staff.find((x) => x.id === e.target.value); setPay({ ...pay, staffId: e.target.value, amount: s ? String(s.salary || "") : pay.amount }); }}><option value="">Daily labour / not listed</option>{mine.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}</select></label>
         <label>Date<input type="date" value={pay.date} max={today()} onChange={(e) => setPay({ ...pay, date: e.target.value || today() })} /></label>
@@ -373,7 +374,7 @@ export function Tasks({ batchId, d }) {
   return (
     <>
       <form className="card form grid2" onSubmit={add}><h3 className="wide">New reminder</h3><label>What to do<input required value={p.title} placeholder="e.g. Vaccinate Batch B" onChange={(e) => setP({ ...p, title: e.target.value })} /></label><label>On which day<input type="date" value={p.date} onChange={(e) => setP({ ...p, date: e.target.value })} /></label><div className="row wide"><button className="btn sm">Add reminder</button></div></form>
-      <section className="card"><h3>To do</h3>{!open.length && <Empty text="Nothing to do. 🎉" />}{open.map((t) => <div className="line" key={t.id}><span><b className={t.date < today() ? "out" : ""}>{t.date}</b> {t.title}</span><span><button className="btn sm" onClick={() => set(t.id, "Done")}>Done ✓</button> <Del onDo={() => F.setTasks((a) => a.filter((x) => x.id !== t.id))} /></span></div>)}</section>
+      <section className="card"><h3>To do</h3>{!open.length && <Empty icon="ok" text="Nothing to do." />}{open.map((t) => <div className="line" key={t.id}><span><b className={t.date < today() ? "out" : ""}>{t.date}</b> {t.title}</span><span><button className="btn sm" onClick={() => set(t.id, "Done")}>Done</button> <Del onDo={() => F.setTasks((a) => a.filter((x) => x.id !== t.id))} /></span></div>)}</section>
       {!!done.length && <section className="card"><h3>Finished</h3>{done.slice(0, 20).map((t) => <div className="line muted" key={t.id}><span>{t.date} {t.title}</span><span><button className="link" onClick={() => set(t.id, "Open")}>Undo</button> <Del onDo={() => F.setTasks((a) => a.filter((x) => x.id !== t.id))} /></span></div>)}</section>}
     </>
   );

@@ -4,6 +4,7 @@ import { useFarmData, useAnalysis, ledger, TRAY, EXP_CATS } from "./farm.js";
 import { inr, today } from "./store.js";
 import { COL, ChartCard, Kpi, Alerts, nf, RangeFilter, rangeOf, inRange } from "./charts.jsx";
 import { kgText } from "./units.js";
+import { Ia } from "./adminIcons.jsx";
 const sum = (a, f) => a.reduce((x, y) => x + (+f(y) || 0), 0);
 const G = <CartesianGrid strokeDasharray="3 3" vertical={false} />;
 const eggsOf = (o) => (o.items || []).reduce((s, i) => s + i.qty * (i.eggs || TRAY), 0);
@@ -40,11 +41,11 @@ export default function Overview({ d }) {
       {scoped && <p className="muted">Online shop orders are shared by all farms, so they are counted in “All farms” and split by eggs produced in the money numbers.</p>}
       <Alerts list={A.alerts} />
       <div className="kpis big">
-        <Kpi l="🥚 Eggs collected" v={nf(eggs)} hint={`${nf(good / TRAY, 1)} good trays`} />
-        <Kpi l="💰 Sales" v={inr(money)} t="good" hint={`${nf(trays, 1)} trays sold`} />
-        <Kpi l="🧾 Expenses" v={inr(expShown)} hint={cat || "all kinds"} />
-        <Kpi l={profit >= 0 ? "✅ Profit" : "⚠️ Loss"} v={inr(Math.abs(profit))} t={profit >= 0 ? "good" : "bad"} hint="after all expenses" />
-        <Kpi l="🐔 Birds died" v={nf(died)} t={died ? "bad" : "good"} hint={`${nf(t.mortPct, 1)}% of all birds bought`} />
+        <Kpi l={<span className="ih"><Ia n="egg" s={16} /> Eggs collected</span>} v={nf(eggs)} hint={`${nf(good / TRAY, 1)} good trays`} />
+        <Kpi l={<span className="ih"><Ia n="money" s={16} /> Sales</span>} v={inr(money)} t="good" hint={`${nf(trays, 1)} trays sold`} />
+        <Kpi l={<span className="ih"><Ia n="receipt" s={16} /> Expenses</span>} v={inr(expShown)} hint={cat || "all kinds"} />
+        <Kpi l={<span className="ih"><Ia n={profit >= 0 ? "trend" : "alert"} s={16} /> {profit >= 0 ? "Profit" : "Loss"}</span>} v={inr(Math.abs(profit))} t={profit >= 0 ? "good" : "bad"} hint="after all expenses" />
+        <Kpi l={<span className="ih"><Ia n="hen" s={16} /> Birds died</span>} v={nf(died)} t={died ? "bad" : "good"} hint={`${nf(t.mortPct, 1)}% of all birds bought`} />
       </div>
       <h3 className="sh">Stock now</h3>
       <div className="kpis">

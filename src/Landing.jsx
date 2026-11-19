@@ -1,26 +1,12 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
-import { FARM } from "./config.js";
+import { FARM, CUSTOMERS } from "./config.js";
+import { Ic } from "./icons.jsx";
 import { inr } from "./store.js";
 
 const reduce = () => typeof matchMedia === "function" && matchMedia("(prefers-reduced-motion: reduce)").matches;
 export const goTo = (id) => (e) => { e?.preventDefault(); document.getElementById(id)?.scrollIntoView({ behavior: reduce() ? "auto" : "smooth", block: "start" }); };
 
-/* small line icons */
-const I = { // each is drawn on a 24x24 grid
-  egg: <path d="M12 2.5c3.6 0 6.5 5.6 6.5 10a6.5 6.5 0 0 1-13 0c0-4.4 2.9-10 6.5-10Z" />,
-  truck: <><path d="M2.5 6.5h11v9h-11zM13.5 9.5h4l3 3v3h-7" /><circle cx="7" cy="17" r="1.8" /><circle cx="17" cy="17" r="1.8" /></>,
-  box: <><path d="M3.5 7.5 12 3l8.5 4.5v9L12 21l-8.5-4.5z" /><path d="M3.5 7.5 12 12l8.5-4.5M12 12v9" /></>,
-  leaf: <><path d="M5 19c0-8 5-13 14-14 0 9-5 14-13 14" /><path d="M5 19c3-5 6-8 10-10" /></>,
-  tag: <><path d="M3.5 12.5V4.5h8l9 9-8 8z" /><circle cx="8" cy="9" r="1.2" /></>,
-  sun: <><circle cx="12" cy="12" r="4" /><path d="M12 2.5v2.5M12 19v2.5M2.5 12H5M19 12h2.5M5.3 5.3l1.8 1.8M16.9 16.9l1.8 1.8M5.3 18.7l1.8-1.8M16.9 7.1l1.8-1.8" /></>,
-  hand: <path d="M8 12V6a1.5 1.5 0 0 1 3 0v4m0-1V4.5a1.5 1.5 0 0 1 3 0V10m0-3a1.5 1.5 0 0 1 3 0v6c0 4-2.5 7-6 7-2.5 0-4-1.2-5.5-3.5L4 14.5a1.5 1.5 0 0 1 2.4-1.8L8 14.5" />,
-  arrow: <path d="M5 12h14M13 6l6 6-6 6" />,
-  chat: <path d="M4 5h16v11H9l-5 4z" />,
-  up: <path d="M12 19V5M6 11l6-6 6 6" />,
-  menu: <path d="M4 7h16M4 12h16M4 17h16" />, close: <path d="M5 5l14 14M19 5 5 19" />,
-  left: <path d="M15 5 8 12l7 7" />, right: <path d="m9 5 7 7-7 7" />,
-};
-export const Icon = ({ n, s = 24 }) => <svg className="ico" width={s} height={s} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{I[n]}</svg>;
+export const Icon = Ic;
 
 /* number that counts up once when it scrolls into view */
 export function CountUp({ to, suffix = "", prefix = "" }) {
@@ -57,16 +43,17 @@ export function SiteHeader({ user, count, onLogin, onCart }) {
     <>
       <div className="site-progress" ref={bar} aria-hidden="true" />
       <header className="site-head" ref={hdr}>
-        <a href="#/" className="site-logo" onClick={(e) => { e.preventDefault(); scrollTo({ top: 0, behavior: reduce() ? "auto" : "smooth" }); }}><span className="egg-mark"><Icon n="egg" s={20} /></span>{FARM.name}</a>
+        <a href="#/" className="site-logo" onClick={(e) => { e.preventDefault(); scrollTo({ top: 0, behavior: reduce() ? "auto" : "smooth" }); }}><img className="brand-mark" src={FARM.logo} alt="" width="44" height="36" />{FARM.name}</a>
         <nav className="site-nav" aria-label="Sections">{SECTIONS.map(([id, l]) => <a key={id} href={"#" + id} className={active === id ? "on" : ""} onClick={goTo(id)}>{l}</a>)}</nav>
         <div className="site-actions">
-          {user ? <a className="btn sm ghost light" href="#/account">{user.name.split(" ")[0]}</a> : <button className="btn sm ghost light" onClick={onLogin}>Log in</button>}
-          <button className={"btn sm basket" + (bump ? " bump" : "")} onClick={onCart}>Basket{count ? <i>{count}</i> : null}</button>
+          {CUSTOMERS && (user ? <a className="btn sm ghost light" href="#/account">{user.name.split(" ")[0]}</a> : <button className="btn sm ghost light" onClick={onLogin}>Log in</button>)}
+          {CUSTOMERS ? <button className={"btn sm basket" + (bump ? " bump" : "")} onClick={onCart}><Icon n="bag" s={16} /> Basket{count ? <i>{count}</i> : null}</button>
+            : <a className="btn sm basket" href="#contact" onClick={goTo("contact")}><Icon n="phone" s={16} /> Contact us</a>}
           <button className="menu-btn" aria-label={open ? "Close menu" : "Open menu"} aria-expanded={open} onClick={() => setOpen(!open)}><Icon n={open ? "close" : "menu"} /></button>
         </div>
       </header>
       <div className={"drawer" + (open ? " open" : "")} aria-hidden={!open}>{SECTIONS.map(([id, l], i) => <a key={id} href={"#" + id} style={{ "--i": i }} onClick={nav(id)}>{l}</a>)}
-        {user ? <a href="#/account" style={{ "--i": 8 }}>My account</a> : <a href="#/" style={{ "--i": 8 }} onClick={(e) => { e.preventDefault(); setOpen(false); onLogin(); }}>Log in</a>}</div>
+        {CUSTOMERS && (user ? <a href="#/account" style={{ "--i": 8 }}>My account</a> : <a href="#/" style={{ "--i": 8 }} onClick={(e) => { e.preventDefault(); setOpen(false); onLogin(); }}>Log in</a>)}</div>
       <button ref={top} className="to-top" aria-label="Back to top" onClick={() => scrollTo({ top: 0, behavior: reduce() ? "auto" : "smooth" })}><Icon n="up" /></button>
       {FARM.whatsapp && <a className="wa-float" href={`https://wa.me/${FARM.whatsapp}`} target="_blank" rel="noreferrer" aria-label="Chat on WhatsApp"><Icon n="chat" s={26} /></a>}
     </>
@@ -84,9 +71,9 @@ export function Hero({ ready, delivery, freeAbove }) {
       <div className="hero-in">
         <p className="eyebrow rise" style={{ "--d": "0s" }}><span className="live" />{ready > 0 ? `${ready} trays ready today` : "Fresh eggs, collected daily"}</p>
         <h1 className="rise" style={{ "--d": ".08s" }}>{FARM.headline}</h1>
-        <p className="lead rise" style={{ "--d": ".18s" }}>{FARM.tagline}. Collected by hand every morning, packed in trays of 30 and delivered in bulk.</p>
-        <div className="row rise" style={{ "--d": ".28s" }}><a className="btn big" href="#products" onClick={goTo("products")}>Order eggs in bulk <Icon n="arrow" s={20} /></a><a className="btn ghost light big" href="#about" onClick={goTo("about")}>See the farm</a></div>
-        <ul className="hero-facts rise" style={{ "--d": ".4s" }}><li><Icon n="sun" /> Fresh every morning</li><li><Icon n="box" /> Trays of 30, boxes of 9 trays</li><li><Icon n="truck" /> Delivery {inr(delivery)}, free above {inr(freeAbove)}</li></ul>
+        <p className="lead rise" style={{ "--d": ".18s" }}>{FARM.tagline}. Collected by hand every morning, packed in trays of 30 and supplied in bulk.</p>
+        <div className="row rise" style={{ "--d": ".28s" }}><a className="btn big" href="#products" onClick={goTo("products")}>{CUSTOMERS ? "Order eggs in bulk" : "See our eggs and prices"} <Icon n="arrow" s={20} /></a><a className="btn ghost light big" href="#about" onClick={goTo("about")}>See the farm</a></div>
+        <ul className="hero-facts rise" style={{ "--d": ".4s" }}><li><Icon n="sun" /> Fresh every morning</li><li><Icon n="box" /> Trays of 30, boxes of 9 trays</li>{CUSTOMERS ? <li><Icon n="truck" /> Delivery {inr(delivery)}, free above {inr(freeAbove)}</li> : <li><Icon n="phone" /> Call or WhatsApp to order</li>}</ul>
       </div>
       <a className="scroll-cue" href="#products" onClick={goTo("products")} aria-label="Scroll to the shop"><span /></a>
       <div className="dots" aria-hidden="true">{slides.map((s, k) => <i key={s} className={k === i ? "on" : ""} />)}</div>
@@ -103,7 +90,7 @@ export const Heading = ({ eyebrow, title, text }) => <div className="sec-head rv
 
 export function Why({ moq, tray }) {
   const f = [["leaf", "Fresh from the shed", "Eggs are collected by hand every morning, so what reaches you is only days old, never weeks."], ["tag", "Pay less as you buy more", "Every product shows its bulk prices. The more trays you order, the lower the price per tray."],
-    ["box", "Packed with care", `Trays of ${tray} eggs, boxes of 9 trays. Clean, counted and ready for your shop, hotel or bakery.`], ["truck", "Reliable delivery", "Confirm your order and we deliver. Large orders can be scheduled ahead for your busy days."]];
+    ["box", "Packed with care", `Trays of ${tray} eggs, boxes of 9 trays. Clean, counted and ready for your shop, hotel or bakery.`], ["truck", "Reliable supply", "Tell us what you need and we supply it on time. Large orders can be scheduled ahead for your busy days."]];
   return (
     <section id="why" className="band alt"><Heading eyebrow="Why choose us" title="Simple, honest, fresh" text={moq ? `Orders start from just ${moq} trays.` : ""} />
       <div className="feat">{f.map(([ic, t, d], k) => <article key={t} className="rv" style={{ "--i": k }}><span className="feat-ico"><Icon n={ic} s={28} /></span><h3>{t}</h3><p>{d}</p></article>)}</div></section>
@@ -128,7 +115,7 @@ export function Story({ ready, moq, delivery }) {
           <div><b><CountUp to={ready} /></b><span>trays ready now</span></div>
           {moq > 0 && <div><b><CountUp to={moq} /></b><span>trays minimum order</span></div>}
           <div><b><CountUp to={30} /></b><span>eggs in every tray</span></div>
-          <div><b><CountUp to={delivery} prefix="₹" /></b><span>delivery charge</span></div>
+          {CUSTOMERS && <div><b><CountUp to={delivery} prefix="₹" /></b><span>delivery charge</span></div>}
         </div></div>
     </section>
   );

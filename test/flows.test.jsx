@@ -12,8 +12,8 @@ beforeEach(() => {
 const real = () => errors.filter((e) => !noise.test(e));
 const goto = async (h) => { location.hash = h; await act(async () => { window.dispatchEvent(new HashChangeEvent("hashchange")); await new Promise((r) => setTimeout(r, 30)); }); };
 const settle = (ms = 60) => act(async () => { await new Promise((r) => setTimeout(r, ms)); });
-async function boot(demo) {
-  vi.stubEnv("VITE_DEMO_MODE", demo); vi.stubEnv("VITE_OTP_CHANNEL", "email");
+async function boot(demo, customers) {
+  vi.stubEnv("VITE_DEMO_MODE", demo); vi.stubEnv("VITE_OTP_CHANNEL", "email"); if (customers) vi.stubEnv("VITE_CUSTOMER_MODE", customers);
   await import("../src/boot.js"); const App = (await import("../src/App.jsx")).default; return render(<App />);
 }
 const get = (k) => JSON.parse(localStorage.getItem(k) || "null");
@@ -95,5 +95,34 @@ describe("live mode: set up a farm and do a day's work", () => {
     await goto(`#/admin/farm/${batch.id}/stock`); await screen.findByText("Available now");
     expect(document.body.textContent).toMatch(/Available now\s*8[\s\S]*trays/); // (530 good - 270 sold) / 30 = 8.67 -> 8 trays
     expect(real()).toEqual([]);
+  });
+});
+
+describe("customer side switch (VITE_CUSTOMER_MODE)", () => {
+  beforeEach(() => { localStorage.setItem("kf_v3", "1"); localStorage.setItem("kf_v4", "1"); }); // as on a browser that has already opened the app once
+  const product = [{ id: "p1", name: "Farm eggs", price: 200, moq: 10, eggs: 30, unit: "tray", active: "Yes", tiers: "", photo: "/photos/tray-detail.webp" }];
+  it("live mode, switch not set: no login, no basket, no ordering, no account page", async () => {
+    localStorage.setItem("kf_products", JSON.stringify(product));
+    await boot("off"); await goto("#/"); await settle(100);
+    const t = document.body.textContent;
+    expect(t).toContain("Farm eggs"); expect(t).toContain("To order, contact us");
+    expect(screen.queryByRole("button", { name: /^Log in$/ })).toBeNull(); expect(screen.queryByRole("button", { name: /Basket/ })).toBeNull();
+    expect(document.querySelector(".qty")).toBeNull(); expect(document.querySelector(".heart")).toBeNull();
+    expect(document.querySelector('a[href^="mailto:Eggesterfarm@gmail.com"]')).toBeTruthy(); expect(document.querySelector('a[href*="share.google"]')).toBeTruthy();
+    expect(document.querySelector("img[src*=brand]")).toBeTruthy();
+    await goto("#/account"); await settle(); expect(document.body.textContent).toContain("Farm eggs"); // falls back to the shop
+    expect(real()).toEqual([]);
+  });
+  it("live mode with VITE_CUSTOMER_MODE=on: login, basket and ordering appear", async () => {
+    localStorage.setItem("kf_products", JSON.stringify(product));
+    await boot("off", "on"); await goto("#/"); await settle(100);
+    expect(screen.getByRole("button", { name: /^Log in$/ })).toBeTruthy(); expect(screen.getByRole("button", { name: /Basket/ })).toBeTruthy(); expect(document.body.textContent).toContain("Sold out for now"); // no eggs in stock yet, but ordering is on
+    expect(document.body.textContent).not.toContain("To order, contact us");
+  });
+  it("accepts true / 1 / yes too, and demo mode always has it on", async () => {
+    localStorage.setItem("kf_products", JSON.stringify(product)); await boot("off", "true"); await goto("#/"); await settle(100); expect(screen.getByRole("button", { name: /Basket/ })).toBeTruthy();
+  });
+  it("demo mode: customer side is on for testing", async () => {
+    await boot("on"); await goto("#/"); await settle(100); expect(screen.getByRole("button", { name: /Basket/ })).toBeTruthy();
   });
 });

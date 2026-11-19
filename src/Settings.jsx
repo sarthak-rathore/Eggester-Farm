@@ -1,10 +1,11 @@
 import React, { useState, lazy, Suspense } from "react";
-import { FARM } from "./config.js";
+import { FARM, CUSTOMERS } from "./config.js";
 import { useFarmData, upsert } from "./farm.js";
 import { useLS, uid, today, inr } from "./store.js";
 import { hash, salt } from "./auth.js";
 import { nf } from "./kit.jsx";
 import { Tile, Msg, Num } from "./ui.jsx";
+import { Ia } from "./adminIcons.jsx";
 import Crud from "./Crud.jsx";
 const AdminAccount = lazy(() => import("./AdminAccount.jsx"));
 const AdminOffers = lazy(() => import("./AdminOffers.jsx"));
@@ -12,12 +13,12 @@ const Lz = ({ children }) => <Suspense fallback={<p className="muted">Loading…
 export const ROLES = ["Manager", "Worker", "Viewer"];
 const ROLE_HELP = { Manager: "Can use everything except Settings", Worker: "Can only enter Today's Update and see Tasks", Viewer: "Can only look at the Overview and Reports" };
 const TILES = [
-  ["farms", "🏡", "Farms & Batches", "फार्म और बैच", "Add, change or remove farms and batches"], ["owner", "👤", "Owner & Address", "मालिक का पता", "Your name, phone, farm address"],
-  ["staff", "👷", "Staff", "काम करने वाले", "Workers and their salary"], ["suppliers", "🚚", "Suppliers", "सप्लायर", "Where you buy from"],
-  ["customers", "🛒", "Customers", "ग्राहक", "Who buys your eggs"], ["fields", "📝", "My Own Fields", "अपने खाने", "Extra things to note every day"],
-  ["notify", "🔔", "Alerts", "सूचना", "When should the app warn you"], ["roles", "🔑", "Who Can Log In", "लॉगिन अधिकार", "Manager, worker and viewer logins"],
-  ["backup", "💾", "Backup & Restore", "बैकअप", "Keep your records safe"], ["account", "⚙️", "Account", "खाता", "Change your password"],
-  ["shop", "🏷️", "Shop Prices", "दुकान के भाव", "Egg prices, offers, delivery"], ["help", "📨", "Customer Messages", "ग्राहक संदेश", "Complaints and questions"],
+  ["farms", "farm", "Farms & Batches", "फार्म और बैच", "Add, change or remove farms and batches"], ["owner", "owner", "Owner & Address", "मालिक का पता", "Your name, phone, farm address"],
+  ["staff", "staff", "Staff", "काम करने वाले", "Workers and their salary"], ["suppliers", "suppliers", "Suppliers", "सप्लायर", "Where you buy from"],
+  ["customers", "cart", "Customers", "ग्राहक", "Who buys your eggs"], ["fields", "fields", "My Own Fields", "अपने खाने", "Extra things to note every day"],
+  ["notify", "bell", "Alerts", "सूचना", "When should the app warn you"], ["roles", "key", "Who Can Log In", "लॉगिन अधिकार", "Manager, worker and viewer logins"],
+  ["backup", "backup", "Backup & Restore", "बैकअप", "Keep your records safe"], ["account", "account", "Account", "खाता", "Change your password"],
+  ["shop", "tag", "Shop Prices", "दुकान के भाव", "Egg prices, offers, delivery"], ["help", "inbox", "Customer Messages", "ग्राहक संदेश", "Complaints and questions"],
 ];
 export default function Settings({ d, sub, go }) {
   const F = useFarmData(); const fn = Object.fromEntries(F.farms.map((f) => [f.id, f.name]));
@@ -26,7 +27,7 @@ export default function Settings({ d, sub, go }) {
   if (!sub) return (
     <>
       <div className="bar"><h2>Settings <small className="hi">सेटिंग</small></h2></div>
-      <div className="tiles">{TILES.map(([k, i, t, hi, s]) => <Tile key={k} icon={i} title={t} hi={hi} sub={s} onClick={() => go("settings/" + k)} badge={k === "help" ? tickets.filter((x) => x.status === "Open").length : 0} />)}</div>
+      <div className="tiles">{TILES.filter(([k]) => CUSTOMERS || k !== "help").map(([k, i, t, hi, s]) => <Tile key={k} icon={<Ia n={i} s={28} />} title={t} hi={hi} sub={s} onClick={() => go("settings/" + k)} badge={k === "help" ? tickets.filter((x) => x.status === "Open").length : 0} />)}</div>
     </>
   );
   const T = TILES.find((x) => x[0] === sub);
@@ -41,19 +42,19 @@ export default function Settings({ d, sub, go }) {
       fields={[{ k: "name", label: "Name" }, { k: "role", label: "Work (e.g. Supervisor, Egg collector)", req: false }, { k: "phone", label: "Phone", req: false }, { k: "salary", label: "Monthly salary (₹)", type: "number", req: false, fmt: inr }, { k: "farmId", label: "Works at", opts: farmOpts, fmt: (v) => fn[v] || "All farms" }, { k: "active", label: "Still working?", opts: ["Yes", "No"] }]} />,
     suppliers: <Crud title="Suppliers" rows={F.sup} blank={{ name: "", phone: "", address: "", supplies: "" }} {...upsert(F.setSup)} fields={[{ k: "name", label: "Name" }, { k: "phone", label: "Phone", req: false }, { k: "supplies", label: "What they supply", req: false }, { k: "address", label: "Address", req: false }]} />,
     customers: <><Crud title="Customers" rows={F.cust} blank={{ name: "", phone: "", address: "", type: "Regular" }} {...upsert(F.setCust)} fields={[{ k: "name", label: "Name (shop, hotel, person)" }, { k: "phone", label: "Phone", req: false }, { k: "address", label: "Address", req: false }, { k: "type", label: "Kind", opts: ["Regular", "Shop", "Hotel", "Bakery", "Caterer", "Other"] }]} />
-      <OnlineAccounts orders={d.orders} /></>,
+      {CUSTOMERS && <OnlineAccounts orders={d.orders} />}</>,
     fields: <><p className="muted">Add your own boxes to Today's Update. For example “Water used (litres)” or “Egg colour”. Saved with each day's record and shown in Production.</p>
       <Crud title="My own fields" rows={F.cf} blank={{ label: "", type: "number" }} {...upsert(F.setCf)} fields={[{ k: "label", label: "Name of the field" }, { k: "type", label: "Type", opts: [{ v: "number", l: "A number" }, { v: "text", l: "Words" }] }]} /></>,
     notify: <Notify F={F} />,
     roles: <Team />,
     backup: <Lz><AdminAccount {...d} show={["backup"]} /></Lz>,
     account: <Lz><AdminAccount {...d} show={["security"]} /></Lz>,
-    shop: <><Crud title="Egg products and bulk prices" rows={d.products} blank={{ emoji: "🥚", unit: "tray", eggs: 30, price: "", mrp: "", moq: 10, tiers: "", gst: "", desc: "", active: "Yes" }} {...upsert(d.setProducts)}
-      fields={[{ k: "emoji", label: "Icon" }, { k: "name", label: "Name" }, { k: "price", label: "Price per tray (₹)", type: "number", fmt: inr }, { k: "mrp", label: "Old price (₹)", type: "number", req: false, fmt: (v) => (v ? inr(v) : "") }, { k: "moq", label: "Smallest online order (trays)", type: "number" }, { k: "tiers", label: "Bulk prices (trays:price, e.g. 50:205,100:200)", req: false }, { k: "gst", label: "GST % (blank = shop default)", type: "number", req: false }, { k: "desc", label: "Description", req: false }, { k: "unit", label: "Unit", req: false }, { k: "eggs", label: "Eggs in one tray", type: "number" }, { k: "active", label: "Show in online shop", opts: ["Yes", "No"] }]} />
+    shop: <><Crud title="Egg products and bulk prices" rows={d.products} blank={{ photo: FARM.photos.gallery[7].src, unit: "tray", eggs: 30, price: "", mrp: "", moq: 10, tiers: "", gst: "", desc: "", active: "Yes" }} {...upsert(d.setProducts)}
+      fields={[{ k: "photo", label: "Photo", req: false, opts: FARM.photos.gallery.map((g) => ({ v: g.src, l: g.title })), fmt: (v) => FARM.photos.gallery.find((g) => g.src === v)?.title || "–" }, { k: "name", label: "Name" }, { k: "price", label: "Price per tray (₹)", type: "number", fmt: inr }, { k: "mrp", label: "Old price (₹)", type: "number", req: false, fmt: (v) => (v ? inr(v) : "") }, { k: "moq", label: "Smallest online order (trays)", type: "number" }, { k: "tiers", label: "Bulk prices (trays:price, e.g. 50:205,100:200)", req: false }, { k: "gst", label: "GST % (blank = shop default)", type: "number", req: false }, { k: "desc", label: "Description", req: false }, { k: "unit", label: "Unit", req: false }, { k: "eggs", label: "Eggs in one tray", type: "number" }, { k: "active", label: "Show in online shop", opts: ["Yes", "No"] }]} />
       <Lz><AdminOffers {...d} /></Lz></>,
     help: <Crud title="Customer complaints and help requests" noAdd rows={tickets} blank={{}} {...upsert(setTickets)} fields={[{ k: "date", label: "Date", noForm: true }, { k: "name", label: "Customer", noForm: true }, { k: "phone", label: "Phone", noForm: true }, { k: "type", label: "Topic", noForm: true }, { k: "orderId", label: "Order", noForm: true }, { k: "message", label: "Message", noForm: true }, { k: "status", label: "Status", opts: ["Open", "In progress", "Resolved"] }, { k: "reply", label: "Your reply", req: false }]} />,
   }[sub];
-  return <><div className="bar"><h2>{T?.[1]} {T?.[2]}</h2><button className="btn sm ghost" onClick={() => go("settings")}>← All settings</button></div>{body}</>;
+  return <><div className="bar"><h2><Ia n={T?.[1]} s={26} /> {T?.[2]}</h2><button className="btn sm ghost" onClick={() => go("settings")}><Ia n="back" s={16} /> All settings</button></div>{body}</>;
 }
 
 function Notify({ F }) {

@@ -44,6 +44,15 @@ The farmer only fills **Today's Update** (eggs, birds, feed, sales, expenses, pu
 
 Photos and the farm name are not demo data and stay.
 
+### Customer side switch
+`VITE_CUSTOMER_MODE` controls customer login, the customer account page, the basket and online orders:
+- not set / `off` (default in live mode): these all disappear. The public page shows the farm, photos and prices, and each product says "To order, contact us" with Call, WhatsApp and Email buttons (shown when the number or email is set). The owner dashboard is unchanged and still reachable from "Owner login" in the footer.
+- `on` (or `true`, `1`, `yes`): the full shop opens again with customer accounts, basket and checkout.
+- Demo mode always has it on, so you can test everything.
+
+### Logo, icons and contact
+The logo is in `public/brand/` (transparent version for dark backgrounds, favicon, app icon, share image). Icons are the Lucide icon set, no emojis. Contact email is Eggesterfarm@gmail.com and the Google Maps link is set in `src/config.js` (or `VITE_FARM_MAP_URL`). Add the phone number in Settings > Owner & Address or `VITE_FARM_PHONE` / `VITE_FARM_WHATSAPP` so the Call and WhatsApp buttons appear.
+
 ### Owner OTP login (demo off)
 The code is created and checked on the server (`/api` functions on Vercel), so no password or secret is ever inside the website files. Add these in Vercel > Settings > Environment Variables, then redeploy:
 - `VITE_DEMO_MODE=off`

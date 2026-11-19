@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
-import { FARM, DEMO, DEMO_OWNER } from "./config.js";
+import { FARM, DEMO, DEMO_OWNER, CUSTOMERS } from "./config.js";
+import { Ic } from "./icons.jsx";
 import { useLS, uid, today, inr, localYmd } from "./store.js";
 import { hash, salt, check, lockedFor, failLogin, clearFails } from "./auth.js";
 import { usePricing, computeBill } from "./pricing.js";
@@ -39,7 +40,7 @@ export default function Shop({ products, orders, setOrders, setProducts }) {
     els.forEach((x) => x.classList.add("reveal")); const io = new IntersectionObserver((es) => es.forEach((e) => { if (e.isIntersecting) { e.target.classList.add("in"); io.unobserve(e.target); } }), { rootMargin: "0px 0px -8% 0px" });
     els.forEach((x) => io.observe(x)); return () => io.disconnect();
   }, [products.length]);
-  useEffect(() => { const v = sessionStorage.getItem("kf_open"); if (v) { setView(v); sessionStorage.removeItem("kf_open"); } }, []);
+  useEffect(() => { const v = sessionStorage.getItem("kf_open"); if (v && CUSTOMERS) setView(v); if (v) sessionStorage.removeItem("kf_open"); }, []);
   const [q, setQ] = useState(""); const [cat, setCat] = useState("All");
   const [f, setF] = useState({ name: "", phone: "", address: "", note: "" });
   const [pay, setPay] = useState("COD"); const [done, setDone] = useState(null); const [busy, setBusy] = useState(false);
@@ -126,18 +127,19 @@ export default function Shop({ products, orders, setOrders, setProducts }) {
       {FARM.announcement && <div className="banner">{FARM.announcement}</div>}
 
       <section id="products" className="band">
-        <Heading eyebrow="Our eggs" title="Wholesale egg trays" text={`Sold by the tray of ${TRAY} eggs. Minimum order and bulk prices are shown on each product. Order more, pay less per tray.`} />
+        <Heading eyebrow="Our eggs" title="Wholesale egg trays" text={CUSTOMERS ? `Sold by the tray of ${TRAY} eggs. Minimum order and bulk prices are shown on each product. Order more, pay less per tray.` : `Sold by the tray of ${TRAY} eggs. Minimum order and bulk prices are shown on each product. Call, WhatsApp or email us to place your order.`} />
         {!shown.length && <p className="empty-note">Our egg prices are being set up. Please call us or check back soon.</p>}
         <div className="grid">
           {shown.map((p) => { const st = S.stockOf(p), tr = tiers(p), n = cart[p.id] || 0; return (
             <article key={p.id} className="pcard" onPointerMove={tilt} onPointerLeave={untilt}>
-              <button className="heart" aria-label={wl.includes(p.id) ? "Remove from wishlist" : "Save to wishlist"} onClick={() => toggleWish(p.id)}>{wl.includes(p.id) ? "♥" : "♡"}</button>
-              <div className="emoji">{p.emoji}</div><h3>{p.name}</h3><p className="muted">{p.desc}</p>
+              {CUSTOMERS && <button className="heart" aria-label={wl.includes(p.id) ? "Remove from wishlist" : "Save to wishlist"} onClick={() => toggleWish(p.id)}><Ic n="heart" s={18} fill={wl.includes(p.id) ? "currentColor" : "none"} /></button>}
+              <div className="pimg"><img src={p.photo || FARM.photos.eggs} alt={p.name} loading="lazy" decoding="async" /></div><h3>{p.name}</h3><p className="muted">{p.desc}</p>
               <div className="price"><b>{inr(p.price)}</b> {+p.mrp > +p.price && <><s className="muted">{inr(p.mrp)}</s> <span className="badge s-delivered">{Math.round(100 - (p.price / p.mrp) * 100)}% off</span> </>}<span className="muted">per {p.unit}</span></div>
               <ul className="tiers">{tr.map((t) => <li key={t.min}><span>{t.min}+ trays</span><b>{inr(t.price)} each</b></li>)}</ul>
-              <p className="muted sm">Minimum order {+p.moq || 1} trays · {st > 0 ? `${st} trays available` : "out of stock"}</p>
-              {st > 0 ? (
-                <div className="qty"><button aria-label="Remove one" onClick={() => setQty(p, -1)}>−</button><input type="number" min="0" aria-label={`Trays of ${p.name}`} value={n} onChange={(e) => setN(p, e.target.value)} /><button aria-label="Add one" onClick={() => setQty(p, 1)}>+</button><button className="chipbtn" onClick={() => setQty(p, 10)}>+10</button></div>
+              <p className="muted sm">Minimum order {+p.moq || 1} trays{CUSTOMERS ? ` · ${st > 0 ? `${st} trays available` : "out of stock"}` : ""}</p>
+              {!CUSTOMERS ? <div className="howto"><b>To order, contact us</b><div className="row">{FARM.phone && <a className="btn sm" href={`tel:${FARM.phone.replace(/\s/g, "")}`}><Ic n="phone" s={16} /> Call</a>}{FARM.whatsapp && <a className="btn sm ghost" target="_blank" rel="noreferrer" href={`https://wa.me/${FARM.whatsapp}?text=${encodeURIComponent("Hello, I would like to order: " + p.name)}`}><Ic n="chat" s={16} /> WhatsApp</a>}{FARM.email && <a className="btn sm ghost" href={`mailto:${FARM.email}?subject=${encodeURIComponent("Order enquiry: " + p.name)}`}><Ic n="mail" s={16} /> Email</a>}</div></div>
+              : st > 0 ? (
+                <div className="qty"><button aria-label="Remove one" onClick={() => setQty(p, -1)}><Ic n="minus" s={16} /></button><input type="number" min="0" aria-label={`Trays of ${p.name}`} value={n} onChange={(e) => setN(p, e.target.value)} /><button aria-label="Add one" onClick={() => setQty(p, 1)}><Ic n="plus" s={16} /></button><button className="chipbtn" onClick={() => setQty(p, 10)}>+10</button></div>
               ) : <p className="out">Sold out for now</p>}
             </article>); })}
         </div>
@@ -155,7 +157,7 @@ export default function Shop({ products, orders, setOrders, setProducts }) {
           ["What does delivery cost?", `${inr(P.pr.deliveryFee)} per order, free above ${inr(P.pr.freeAbove)}.`],
           ["How can I pay?", "Pay cash on delivery" + (FARM.upiId ? ", by UPI" : "") + (FARM.razorpayKey ? ", or by card and net banking online." : ".")],
           ["Can I get a GST invoice?", "Yes. Every order has a downloadable invoice in your account."],
-          ["Can I cancel an order?", "Yes. Open your account and cancel any order that is still Pending. Otherwise call us."]].map(([a, b]) => <details key={a}><summary>{a}</summary><p>{b}</p></details>)}
+          ["Can I cancel an order?", "Yes. Open your account and cancel any order that is still Pending. Otherwise call us."]].filter(([a]) => CUSTOMERS || !/account|cancel|pay|GST|invoice/i.test(a)).map(([a, b]) => <details key={a}><summary>{a}</summary><p>{b}</p></details>)}
       </section>
 
       <section id="contact" className="band alt contact">
@@ -163,11 +165,12 @@ export default function Shop({ products, orders, setOrders, setProducts }) {
           <h2>Visit or call us</h2>
           <p><b>{FARM.name}</b>{FARM.address && <><br />{FARM.address}</>}</p>{FARM.hours && <p>{FARM.hours}</p>}
           <p>{FARM.phone && <a href={`tel:${FARM.phone.replace(/\s/g, "")}`}>{FARM.phone}</a>}{FARM.phone && FARM.email && <br />}{FARM.email && <a href={`mailto:${FARM.email}`}>{FARM.email}</a>}</p>
-          {FARM.whatsapp && <a className="btn" href={`https://wa.me/${FARM.whatsapp}`} target="_blank" rel="noreferrer">Chat on WhatsApp</a>}
+          <div className="row">{FARM.whatsapp && <a className="btn" href={`https://wa.me/${FARM.whatsapp}`} target="_blank" rel="noreferrer"><Ic n="chat" s={18} /> Chat on WhatsApp</a>}{FARM.mapUrl && <a className="btn ghost" href={FARM.mapUrl} target="_blank" rel="noreferrer"><Ic n="pin" s={18} /> Open in Google Maps</a>}</div>
         </div>
-        {FARM.address && <iframe title="Farm location" loading="lazy" referrerPolicy="no-referrer" src={`https://www.google.com/maps?q=${encodeURIComponent(FARM.address)}&output=embed`} />}
+        {FARM.address ? <iframe title="Farm location" loading="lazy" referrerPolicy="no-referrer" src={`https://www.google.com/maps?q=${encodeURIComponent(FARM.address)}&output=embed`} />
+          : FARM.mapUrl && <a className="mapcard" href={FARM.mapUrl} target="_blank" rel="noreferrer"><img src={FARM.photos.gallery[0].src} alt="" loading="lazy" decoding="async" /><span><Ic n="pin" s={22} /> Find us on Google Maps<small>Tap to open directions</small></span></a>}
       </section>
-      <footer className="site-foot"><div><b className="site-logo"><span className="egg-mark"><Icon n="egg" s={18} /></span>{FARM.name}</b><p>{FARM.tagline}</p></div>
+      <footer className="site-foot"><div><img className="foot-logo" src={FARM.logoFull} alt={FARM.name} width="150" height="150" loading="lazy" /><p>{FARM.tagline}</p></div>
         <div className="foot-links"><a href="#products" onClick={goTo("products")}>Shop</a><a href="#about" onClick={goTo("about")}>Our farm</a><a href="#gallery" onClick={goTo("gallery")}>Photos</a><a href="#contact" onClick={goTo("contact")}>Visit us</a></div>
         <small>© {new Date().getFullYear()} {FARM.name}. All rights reserved. · <a href="#/admin">Owner login</a></small></footer>
 
@@ -176,7 +179,7 @@ export default function Shop({ products, orders, setOrders, setProducts }) {
           {!lines.length ? <p className="muted">Your basket is empty. Add eggs or chicken to get started.</p> : <>
             {lines.map((l) => { const p = products.find((x) => x.id === l.id); return (
               <div className="line" key={l.id}><span>{l.name}<br /><small className="muted">{inr(l.price)} per {l.unit}{l.price < l.base ? " (bulk price)" : ""} · min {l.moq}</small></span>
-                <span className="qty"><button aria-label="Remove one" onClick={() => setQty(p, -1)}>−</button><span>{l.qty}</span><button aria-label="Add one" onClick={() => setQty(p, 1)}>+</button></span><b>{inr(l.price * l.qty)}</b></div>); })}
+                <span className="qty"><button aria-label="Remove one" onClick={() => setQty(p, -1)}><Ic n="minus" s={16} /></button><span>{l.qty}</span><button aria-label="Add one" onClick={() => setQty(p, 1)}><Ic n="plus" s={16} /></button></span><b>{inr(l.price * l.qty)}</b></div>); })}
             <Bill bill={bill} coupons={P.coupons} code={P.code} setCode={P.setCode} onCheckout={() => setView("checkout")} /></>}
         </Modal>
       )}

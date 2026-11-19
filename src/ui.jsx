@@ -1,5 +1,6 @@
 import React from "react";
 import { WUNITS } from "./units.js";
+import { Ia } from "./adminIcons.jsx";
 
 export const Msg = ({ m }) => (m ? <p className={m[0] === "e" ? "out" : "okmsg"} role="status">{m.slice(2)}</p> : null);
 
@@ -33,7 +34,7 @@ export const Tile = ({ icon, title, hi, sub, onClick, badge, tone }) => (
   </button>
 );
 
-export const Empty = ({ text }) => <p className="empty-note">{text}</p>;
+export const Empty = ({ text, icon }) => <p className="empty-note">{icon && <Ia n={icon} s={28} />}<span>{text}</span></p>;
 
 /* shown while a screen is loading: soft pulsing blocks instead of a blank page */
 export const Loading = () => <div className="skel" aria-busy="true" aria-label="Loading"><i /><i /><i /><i /></div>;

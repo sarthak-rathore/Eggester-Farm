@@ -4,10 +4,11 @@ import { useFarmData, useAnalysis, ledger, rawStock, TRAY, EXP_CATS } from "./fa
 import { inr, today } from "./store.js";
 import { COL, ChartCard, nf, RangeFilter, rangeOf, inRange } from "./charts.jsx";
 import { kgText, qtyText } from "./units.js";
+import { Ia } from "./adminIcons.jsx";
 const Dash = lazy(() => import("./Dash.jsx"));
 const sum = (a, f) => a.reduce((x, y) => x + (+f(y) || 0), 0);
 const G = <CartesianGrid strokeDasharray="3 3" vertical={false} />;
-const REPORTS = [["daily", "📅", "Day by day"], ["month", "🗓️", "Month by month profit"], ["eggs", "🥚", "Egg production"], ["sales", "💰", "Sales by customer"], ["exp", "🧾", "Expenses"], ["feed", "🌾", "Feed use and cost"], ["mort", "🐔", "Birds died"], ["stock", "📦", "Stock today"], ["charts", "📈", "All graphs"]];
+const REPORTS = [["daily", "day", "Day by day"], ["month", "month", "Month by month profit"], ["eggs", "egg", "Egg production"], ["sales", "money", "Sales by customer"], ["exp", "receipt", "Expenses"], ["feed", "wheat", "Feed use and cost"], ["mort", "hen", "Birds died"], ["stock", "box", "Stock today"], ["charts", "chart", "All graphs"]];
 const eggsOf = (o) => (o.items || []).reduce((s, i) => s + i.qty * (i.eggs || TRAY), 0);
 
 function download(name, heads, rows) {
@@ -35,7 +36,7 @@ export default function Reports({ batchId = "", d }) {
   const name = (batch ? batch.name + "-" : "") + kind;
   return (
     <>
-      <div className="chips big">{REPORTS.map(([k, i, l]) => <button key={k} className={k === kind ? "on" : ""} onClick={() => setKind(k)}>{i} {l}</button>)}</div>
+      <div className="chips big">{REPORTS.map(([k, i, l]) => <button key={k} className={k === kind ? "on" : ""} onClick={() => setKind(k)}><Ia n={i} s={16} /> {l}</button>)}</div>
       {kind === "charts" ? <Suspense fallback={<p className="muted">Loading…</p>}><Dash orders={d.orders} txns={d.txns} batchId={batchId} /></Suspense> : <>
         <RangeFilter v={rv} set={setRv} />
         <div className="row noprint"><button className="btn sm" onClick={() => download(name, R.heads, R.rows)}>Download for Excel</button><button className="btn sm ghost" onClick={() => window.print()}>Print</button></div>

@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { FARM, DEMO, DEMO_OWNER } from "./config.js";
+import { Ia } from "./adminIcons.jsx";
 import { useLS, setKey, reloadAll } from "./store.js";
 import { useAnalysis } from "./farm.js";
 
@@ -83,7 +84,7 @@ export default function AdminAccount({ orders, txns, setTxns, setOrders, show })
       </>}
 
       {sub === "setup" && <section className="card"><h3>Setup status</h3>
-        {[["Razorpay card payments", FARM.razorpayKey, "VITE_RAZORPAY_KEY_ID"], ["Live mode (no demo data, OTP login)", DEMO ? "" : "on", "VITE_DEMO_MODE=off"], ["UPI payments", FARM.upiId, "VITE_UPI_ID"], ["Database (phase 3)", FARM.supabaseUrl, "VITE_SUPABASE_URL"], ] .map(([l, v, k]) => <p key={k} className="muted">{v ? "✓" : "○"} {l}: {v ? "connected" : `not set, add ${k} in your environment variables`}</p>)}</section>}
+        {[["Razorpay card payments", FARM.razorpayKey, "VITE_RAZORPAY_KEY_ID"], ["Live mode (no demo data, OTP login)", DEMO ? "" : "on", "VITE_DEMO_MODE=off"], ["UPI payments", FARM.upiId, "VITE_UPI_ID"], ["Database (phase 3)", FARM.supabaseUrl, "VITE_SUPABASE_URL"], ] .map(([l, v, k]) => <p key={k} className="muted ih"><Ia n={v ? "check" : "dot"} s={14} /> {l}: {v ? "connected" : `not set, add ${k} in your environment variables`}</p>)}</section>}
     </>
   );
 }

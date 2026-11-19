@@ -25,7 +25,7 @@ export default function Account({ products, orders, setOrders, setProducts }) {
   const [sel, setSel] = useState("");
   const S = useStock(orders);
   const tab = location.hash.split("/")[2] || "overview";
-  const Top = <header className="nav"><a href="#/" className="logo">🥚 {FARM.name}</a><nav><a className="btn sm ghost" href="#/">Back to shop</a></nav></header>;
+  const Top = <header className="nav"><a href="#/" className="logo"><img className="brand-mark" src={FARM.logo} alt="" width="44" height="36" /> {FARM.name}</a><nav><a className="btn sm ghost" href="#/">Back to shop</a></nav></header>;
   if (!user) return <>{Top}<div className="login"><div className="card form"><h2>Log in to see your account</h2><p className="muted">Your orders, addresses and wishlist live here.</p><button className="btn" onClick={() => openShop("auth")}>Log in or create account</button></div></div></>;
 
   const mine = orders.filter((o) => o.userId === user.id);

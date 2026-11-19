@@ -1,4 +1,5 @@
 import React from "react";
+import { FARM } from "./config.js";
 /* If one screen breaks, show a calm message instead of a blank page. Technical details go to the browser console only, never on screen. */
 export default class ErrorBoundary extends React.Component {
   state = { failed: false, ref: "" };
@@ -9,7 +10,7 @@ export default class ErrorBoundary extends React.Component {
     if (!this.state.failed) return this.props.children;
     return (
       <div className="card errbox" role="alert">
-        <div className="lg-ico">🐣</div><h2>Something went wrong on this screen</h2>
+        <img className="lg-logo" src={FARM.logo} alt="" width="96" height="80" /><h2>Something went wrong on this screen</h2>
         <p className="muted">Your saved records are safe. Please try again. If it keeps happening, take a screenshot and tell us this code: <b>{this.state.ref}</b></p>
         <div className="row"><button className="btn" onClick={() => this.setState({ failed: false })}>Try again</button><a className="btn ghost" href="#/admin">Go to home</a></div>
       </div>

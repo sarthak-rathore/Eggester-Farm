@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { inr, today } from "./store.js";
+import { Ic } from "./icons.jsx";
 
 export default function Bill({ bill, coupons, code, setCode, onCheckout, cta = "Checkout" }) {
   const [v, setV] = useState("");
@@ -21,7 +22,7 @@ export default function Bill({ bill, coupons, code, setCode, onCheckout, cta = "
       {bill.belowMin && <p className="out" role="alert">The minimum order is {inr(bill.minOrder)}. Add {inr(bill.minOrder - bill.sub)} more to continue.</p>}
       {!!bill.sub && (
         <div className="coupon">
-          {manual ? <div className="applied"><span>✓ <b>{bill.offer.code}</b> applied</span><button type="button" className="link" onClick={() => setCode("")}>Remove</button></div> : (
+          {manual ? <div className="applied"><span><Ic n="check" s={14} /> <b>{bill.offer.code}</b> applied</span><button type="button" className="link" onClick={() => setCode("")}>Remove</button></div> : (
             <div className="row"><input aria-label="Coupon code" placeholder="Coupon code" value={v} onChange={(e) => setV(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); apply(v); } }} /><button type="button" className="btn sm ghost" onClick={() => apply(v)}>Apply</button></div>)}
           {bill.note && <p className="out" role="alert">{bill.note}</p>}
           {!manual && !!chips.length && <div className="chips">{chips.map((c) => <button type="button" key={c.id} title={c.label} onClick={() => apply(c.code)}>{c.code}</button>)}</div>}

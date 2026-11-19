@@ -1,6 +1,6 @@
 import { Loading } from "./ui.jsx";
 import React, { useState, useEffect, lazy, Suspense } from "react";
-import { SEED_PRODUCTS } from "./config.js";
+import { SEED_PRODUCTS, CUSTOMERS } from "./config.js";
 import { useLS } from "./store.js";
 import Shop from "./Shop.jsx";
 
@@ -21,7 +21,7 @@ export default function App() {
   const [txns, setTxns] = useLS("kf_txns", []);
   const data = { products, setProducts, orders, setOrders, txns, setTxns };
   if (hash.startsWith("#/admin")) return <Suspense fallback={<Loading />}><Owner {...data} /></Suspense>;
-  if (hash.startsWith("#/account")) return <Suspense fallback={<Loading />}><Account {...data} /></Suspense>;
+  if (CUSTOMERS && hash.startsWith("#/account")) return <Suspense fallback={<Loading />}><Account {...data} /></Suspense>;
   return <Shop {...data} />;
 }
 

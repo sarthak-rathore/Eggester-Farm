@@ -110,7 +110,7 @@ export default function TodayUpdate({ batchId, orders, setOrders, txns, products
 
       <Sect n="4" title="Sales today" hint="Eggs sold. Boxes, trays and eggs go down automatically">
         <div className="wide">
-          {!products.length && <p className="hint">To record sales, first add your egg price in Settings → Shop Prices.</p>}
+          {!products.length && <p className="hint">To record sales, first add your egg price in Settings > Shop Prices.</p>}
           {!!products.length && !sales.length && <p className="muted">No sale added. Tap “Add a sale” if you sold eggs today.</p>}
           {sales.map((s) => { const p = products.find((q) => q.id === s.productId) || prod, up = unitPrice(p, s.unit, s.qty, perBox), tot = n(s.qty) * (n(s.price) || up); return (
             <div className="line3" key={s.id}>

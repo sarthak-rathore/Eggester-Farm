@@ -54,6 +54,9 @@ The code is created and checked on the server (`/api` functions on Vercel), so n
 Codes are 6 digits, work once for 5 minutes, lock after 5 wrong tries, and a stranger cannot learn which email or number is the owner's. A login lasts 12 hours. If a setting is missing the owner only sees "Login is not set up yet"; the exact missing names are in Vercel > Logs. To try OTP on your own computer use `vercel dev` (plain `npm run dev` has no server functions).
 Manager and worker logins (phone + PIN) are separate and are checked on the device.
 
+### Public home page
+Full-screen photo slideshow, scroll-aware menu with a reading-progress bar and phone menu, live "trays ready today" badge, shop, why-us, farm-to-doorstep steps, count-up numbers, a 13-photo gallery with a full-screen viewer (arrows, swipe, Esc), help, contact and footer. All photos are in `public/photos/` (WebP). To add photos, drop a file in that folder and add one line to `photos.gallery` in `src/config.js`.
+
 ### Safety and speed
 - Security headers, caching and a strict content policy are in `vercel.json`. Passwords and PINs are stored with PBKDF2 (old accounts still work). 5 wrong logins lock that login for 5 minutes. Backups never contain passwords. Errors show friendly messages only; technical details go to the browser console / server log.
 - The shop loads about 70 KB of code; charts load only when a chart screen opens. Photos are WebP with long caching. Motion is smooth and is turned off automatically for people who prefer reduced motion.

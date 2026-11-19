@@ -4,6 +4,7 @@ import { useLS, uid, today, inr, localYmd } from "./store.js";
 import { hash, salt, check, lockedFor, failLogin, clearFails } from "./auth.js";
 import { usePricing, computeBill } from "./pricing.js";
 import Bill from "./Bill.jsx";
+import { SiteHeader, Hero, Marquee, Heading, Why, How, Story, Gallery, goTo, Icon } from "./Landing.jsx";
 import { useStock, makeLines, stepQty, tiers, TRAY } from "./farm.js";
 
 const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
@@ -12,7 +13,6 @@ export const PAYNAME = { COD: "Cash on delivery", UPI: "UPI (pay after ordering)
 const loadRzp = () => new Promise((ok, no) => { if (window.Razorpay) return ok(); const s = document.createElement("script"); s.src = "https://checkout.razorpay.com/v1/checkout.js"; s.onload = ok; s.onerror = no; document.body.appendChild(s); });
 const tilt = (e) => { const r = e.currentTarget.getBoundingClientRect(); const x = (e.clientX - r.left) / r.width - 0.5, y = (e.clientY - r.top) / r.height - 0.5; e.currentTarget.style.transform = `perspective(700px) rotateY(${x * 12}deg) rotateX(${-y * 12}deg) translateZ(6px)`; };
 const untilt = (e) => (e.currentTarget.style.transform = "");
-const Photo = ({ src, alt, cls }) => <img className={cls} src={src} alt={alt} loading="lazy" onError={(e) => (e.currentTarget.style.display = "none")} />;
 const Modal = ({ title, onClose, side, children }) => (
   <div className="modal" onClick={onClose}><div className={"sheet" + (side ? " side" : "")} role="dialog" aria-label={title} onClick={(e) => e.stopPropagation()}>
     <div className="bar"><h3>{title}</h3><button className="x" aria-label="Close" onClick={onClose}>×</button></div>{children}</div></div>
@@ -35,7 +35,7 @@ export default function Shop({ products, orders, setOrders, setProducts }) {
   const [view, setView] = useState(null);
   const [wish, setWish] = useLS("kf_wish", {});
   useEffect(() => { // soft fade-in of each section as it scrolls into view
-    const els = [...document.querySelectorAll(".sec, .grid > *")]; if (!("IntersectionObserver" in window)) return els.forEach((x) => x.classList.add("in"));
+    const els = [...document.querySelectorAll(".sec, .grid > *, .rv, .faq details, .contact > *")]; if (!("IntersectionObserver" in window)) return els.forEach((x) => x.classList.add("in"));
     els.forEach((x) => x.classList.add("reveal")); const io = new IntersectionObserver((es) => es.forEach((e) => { if (e.isIntersecting) { e.target.classList.add("in"); io.unobserve(e.target); } }), { rootMargin: "0px 0px -8% 0px" });
     els.forEach((x) => io.observe(x)); return () => io.disconnect();
   }, [products.length]);
@@ -72,8 +72,7 @@ export default function Shop({ products, orders, setOrders, setProducts }) {
   const shown = products.filter((p) => p.active !== "No");
   const setQty = (p, d) => setCart((c) => ({ ...c, [p.id]: stepQty(p, c[p.id] || 0, d, S.stockOf(p)) }));
   const setN = (p, n) => setCart((c) => ({ ...c, [p.id]: Math.max(0, Math.min(S.stockOf(p), Math.round(+n) || 0)) }));
-  const move = (e) => { const r = e.currentTarget.getBoundingClientRect(); e.currentTarget.style.setProperty("--mx", (e.clientX - r.left) / r.width - 0.5); e.currentTarget.style.setProperty("--my", (e.clientY - r.top) / r.height - 0.5); };
-
+  
   const finalize = (o) => {
     setOrders((os) => [o, ...os]);
     setCart({}); setDone(o); setView("done"); setBusy(false);
@@ -120,32 +119,14 @@ export default function Shop({ products, orders, setOrders, setProducts }) {
 
   return (
     <>
-      <header className="nav">
-        <a href="#/" className="logo">🥚 {FARM.name}</a>
-        <nav><a href="#products">Shop</a><a href="#about">Our farm</a><a href="#gallery">Photos</a><a href="#faq">Help</a><a href="#contact">Visit</a>
-          {user ? <a className="btn sm ghost" href="#/account">{user.name.split(" ")[0]}</a> : <button className="btn sm ghost" onClick={() => setView("auth")}>Log in</button>}
-          <button className="btn sm" onClick={() => setView("cart")}>Basket{count ? ` (${count})` : ""}</button></nav>
-      </header>
+      <SiteHeader user={user} count={count} onLogin={() => setView("auth")} onCart={() => setView("cart")} />
 
+      <Hero ready={Math.floor(S.pool / TRAY)} delivery={P.pr.deliveryFee} freeAbove={P.pr.freeAbove} />
+      <Marquee />
       {FARM.announcement && <div className="banner">{FARM.announcement}</div>}
-      <section className="hero" onPointerMove={move} style={{ backgroundImage: `linear-gradient(100deg,rgba(10,36,27,.92) 0%,rgba(10,36,27,.72) 45%,rgba(10,36,27,.35) 100%),url(${FARM.photos.hero})`, backgroundSize: "cover", backgroundPosition: "center" }}>
-        <div className="eggs" aria-hidden="true">
-          {[["60%", "56%", 120, 0.4, 60, "0s"], ["72%", "10%", 170, 0.8, 120, "-2s"], ["88%", "60%", 90, 0.3, 40, "-4s"], ["54%", "76%", 70, 0.6, 90, "-1s"], ["58%", "6%", 60, 0.5, 70, "-3s"]].map(([l, t, s, z, d, dl], i) => (
-            <div key={i} className="eggw" style={{ left: l, top: t, "--d": d + "px", "--z": z * 100 + "px" }}><div className="egg" style={{ "--s": s + "px", "--dl": dl }} /></div>
-          ))}
-        </div>
-        <div className="hero-copy">
-          <p className="pill">Wholesale egg supplier</p>
-          <h1>{FARM.headline}</h1>
-          <p className="lead">{FARM.tagline}. Collected by hand every morning, packed in trays of 30 and delivered in bulk.</p>
-          <div className="row"><a className="btn" href="#products">Order eggs in bulk</a><a className="btn ghost light" href="#about">See the farm</a></div>
-          <p className="lead small">{Math.floor(S.pool / TRAY)} trays ready now · Delivery {inr(P.pr.deliveryFee)}, free above {inr(P.pr.freeAbove)}</p>
-        </div>
-      </section>
 
-      <section id="products" className="sec">
-        <h2>Wholesale egg trays</h2>
-        <p className="muted">Sold by the tray of {TRAY} eggs. Minimum order and bulk prices are shown on each product. Order more, pay less per tray.</p>
+      <section id="products" className="band">
+        <Heading eyebrow="Our eggs" title="Wholesale egg trays" text={`Sold by the tray of ${TRAY} eggs. Minimum order and bulk prices are shown on each product. Order more, pay less per tray.`} />
         {!shown.length && <p className="empty-note">Our egg prices are being set up. Please call us or check back soon.</p>}
         <div className="grid">
           {shown.map((p) => { const st = S.stockOf(p), tr = tiers(p), n = cart[p.id] || 0; return (
@@ -162,22 +143,13 @@ export default function Shop({ products, orders, setOrders, setProducts }) {
         </div>
       </section>
 
-      <section id="about" className="sec about">
-        <div className="about-txt">
-          <h2>A small farm that does one thing well</h2>
-          <p>{FARM.about}</p>
-          <div className="stats"><div><b>{Math.floor(S.pool / TRAY)}</b><span>trays ready now</span></div>{!!shown.length && <div><b>{Math.min(...shown.map((p) => +p.moq || 1))} trays</b><span>minimum order</span></div>}<div><b>Fresh</b><span>collected every morning</span></div></div>
-        </div>
-        <div className="photos"><Photo cls="ph a" src={FARM.photos.hens} alt="Hens at the farm" /><Photo cls="ph b" src={FARM.photos.eggs} alt="Fresh eggs" /><Photo cls="ph c" src={FARM.photos.hero} alt="Farm fields" /></div>
-      </section>
+      <Why moq={shown.length ? Math.min(...shown.map((p) => +p.moq || 1)) : 0} tray={TRAY} />
+      <How />
+      <Story ready={Math.floor(S.pool / TRAY)} moq={shown.length ? Math.min(...shown.map((p) => +p.moq || 1)) : 0} delivery={P.pr.deliveryFee} />
+      <Gallery />
 
-      <section id="gallery" className="sec">
-        <h2>From our farm</h2><p className="muted">Real photos from the {FARM.name} shed and packing area.</p>
-        <div className="gallery">{FARM.photos.gallery.map((g) => <figure key={g.src}><Photo src={g.src} alt={g.title} /><figcaption>{g.title}</figcaption></figure>)}</div>
-      </section>
-
-      <section id="faq" className="sec faq">
-        <h2>Questions, answered</h2>
+      <section id="faq" className="band faq">
+        <Heading eyebrow="Help" title="Questions, answered" />
         {[["What is the minimum order?", "Each product shows its minimum number of trays. Larger orders get lower prices per tray."],
           ["How fast do you deliver?", "Orders confirmed before 6 PM are delivered the next morning. Very large orders can be scheduled in advance."],
           ["What does delivery cost?", `${inr(P.pr.deliveryFee)} per order, free above ${inr(P.pr.freeAbove)}.`],
@@ -186,7 +158,7 @@ export default function Shop({ products, orders, setOrders, setProducts }) {
           ["Can I cancel an order?", "Yes. Open your account and cancel any order that is still Pending. Otherwise call us."]].map(([a, b]) => <details key={a}><summary>{a}</summary><p>{b}</p></details>)}
       </section>
 
-      <section id="contact" className="sec contact">
+      <section id="contact" className="band alt contact">
         <div>
           <h2>Visit or call us</h2>
           <p><b>{FARM.name}</b>{FARM.address && <><br />{FARM.address}</>}</p>{FARM.hours && <p>{FARM.hours}</p>}
@@ -195,7 +167,9 @@ export default function Shop({ products, orders, setOrders, setProducts }) {
         </div>
         {FARM.address && <iframe title="Farm location" loading="lazy" referrerPolicy="no-referrer" src={`https://www.google.com/maps?q=${encodeURIComponent(FARM.address)}&output=embed`} />}
       </section>
-      <footer><span>© {new Date().getFullYear()} {FARM.name}</span><a href="#/admin">Owner login</a></footer>
+      <footer className="site-foot"><div><b className="site-logo"><span className="egg-mark"><Icon n="egg" s={18} /></span>{FARM.name}</b><p>{FARM.tagline}</p></div>
+        <div className="foot-links"><a href="#products" onClick={goTo("products")}>Shop</a><a href="#about" onClick={goTo("about")}>Our farm</a><a href="#gallery" onClick={goTo("gallery")}>Photos</a><a href="#contact" onClick={goTo("contact")}>Visit us</a></div>
+        <small>© {new Date().getFullYear()} {FARM.name}. All rights reserved. · <a href="#/admin">Owner login</a></small></footer>
 
       {view === "cart" && (
         <Modal side title="Your basket" onClose={() => setView(null)}>

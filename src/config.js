@@ -38,7 +38,12 @@ export const FARM = {
   // real photos of the farm live in /public/photos (replace the files to change them)
   photos: {
     hero: P("shed"), hens: P("cages"), eggs: P("tray"),
-    gallery: [["shed", "Our laying shed"], ["cages", "Hens at feed time"], ["cages2", "Morning light in the shed"], ["tray", "A full tray of 30 fresh eggs"], ["stack1", "Eggs packed in trays"], ["stack2", "Trays ready for delivery"]].map(([k, t]) => ({ src: P(k), title: t })),
+    // slides for the top of the home page
+    slides: ["shed", "sunbeam", "stack-close", "shed-hens"].map(P),
+    // every photo on the farm gallery: [file, caption, shape]  (shape: t = tall, w = wide, s = square)
+    gallery: [["shed", "Our laying shed", "w"], ["tray", "A full tray of 30 fresh eggs", "s"], ["cages", "Hens at feeding time", "t"], ["stack1", "Eggs packed in trays", "t"], ["hens-close", "Hens up close", "t"], ["sunbeam", "Morning light in the shed", "s"],
+      ["stack-close", "Trays stacked and ready", "s"], ["tray-detail", "Fresh eggs, up close", "s"], ["cages2", "Evening in the shed", "t"], ["shed-hens", "Hens along the feed line", "s"], ["stack2", "Trays ready for delivery", "t"], ["feeding-line", "Down the feeding line", "t"], ["stack-left", "Stacked for dispatch", "t"]]
+      .map(([k, t, s]) => ({ src: P(k), title: t, shape: s })),
   },
 };
 const DEMO_PRODUCTS = [

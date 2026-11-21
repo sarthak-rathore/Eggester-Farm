@@ -2,7 +2,9 @@ import React, { useState, useMemo } from "react";
 import { ComposedChart, Bar, Line, Area, AreaChart, LineChart, PieChart, Pie, Cell, BarChart, XAxis, YAxis, Tooltip, Legend, CartesianGrid, ReferenceLine } from "recharts";
 import { useAnalysis, aggregate, TRAY } from "./farm.js";
 import { inr } from "./store.js";
-import { COL, PIE, ChartCard, Kpi, Alerts, nf } from "./charts.jsx";
+import { COL, PIE, ChartCard, Kpi, Alerts, nf, Pack } from "./charts.jsx";
+import { Bi } from "./i18n.jsx";
+import { lossReason, byCategory } from "./insights.js";
 
 const X = <XAxis dataKey="k" tick={{ fontSize: 11 }} minTickGap={18} />;
 const G = <CartesianGrid strokeDasharray="3 3" vertical={false} />;
@@ -22,6 +24,7 @@ export default function Dash({ orders, txns, batchId = "", farmId = "" }) {
   const buyers = Object.entries(A.buyers).sort((a, b) => b[1] - a[1]).slice(0, 6).map(([name, trays]) => ({ name, trays: Math.round(trays) }));
   const cmp = A.perBatch.filter((x) => !fid || x.b.farmId === fid).map((x) => ({ name: x.b.name, mortality: Math.round(x.mortPct * 10) / 10, henDay: x.hdp === null ? 0 : Math.round(x.hdp * 10) / 10 }));
   const noData = !A.batches.length;
+  const why = profit < 0 ? lossReason({ revenue: sm("revenue"), expense: sm("expense"), manLoss: sm("manLoss"), byCat: A.expBreak, feedKg: t.feedLeft }) : null;
   return (
     <>
       <div className="bar"><h3>All graphs, {label}</h3>
@@ -56,7 +59,7 @@ export default function Dash({ orders, txns, batchId = "", farmId = "" }) {
 
       <h3 className="sh">Eggs and stock</h3>
       <div className="kpis">
-        <Kpi l="Eggs collected" v={nf(sm("eggs"))} /><Kpi l="Hen-day production" v={t.hdp7 === null ? "–" : nf(t.hdp7, 1) + "%"} hint="last 7 days, laying hens only" t={t.hdp7 !== null && t.hdp7 < 70 ? "bad" : "good"} /><Kpi l="Trays produced" v={nf(trP)} /><Kpi l="Trays sold" v={nf(trS)} /><Kpi l="Trays in stock now" v={nf(t.stockTrays)} t={t.stockTrays < 20 ? "bad" : "good"} /><Kpi l="Boxes in stock" v={nf(t.boxStock)} t={t.boxStock < 20 ? "bad" : "good"} /><Kpi l="Eggs broken" v={nf(sm("eggs") ? (sm("broken") / sm("eggs")) * 100 : 0, 1) + "%"} />
+        <Kpi l="Eggs collected" v={nf(sm("eggs"))} /><Kpi l="Hen-day production" v={t.hdp7 === null ? "–" : nf(t.hdp7, 1) + "%"} hint="last 7 days, laying hens only" t={t.hdp7 !== null && t.hdp7 < 70 ? "bad" : "good"} /><Kpi l="Trays produced" v={nf(trP)} /><Kpi l="Trays sold" v={nf(trS)} /><Kpi l="Trays in stock now" v={nf(t.stockTrays)} t={t.stockTrays < 20 ? "bad" : "good"} hint={<Pack eggs={t.stockEggs} />} /><Kpi l="Empty boxes in stock" v={nf(t.boxStock)} t={t.boxStock < 20 ? "bad" : "good"} /><Kpi l="Eggs broken" v={nf(sm("eggs") ? (sm("broken") / sm("eggs")) * 100 : 0, 1) + "%"} />
       </div>
       <div className="two">
         <ChartCard title="Egg production" hint="Good and broken eggs (bars), hen-day production % (line)"><ComposedChart data={s}>{G}{X}{Y}{YR}<Tooltip /><Legend /><Bar dataKey="good" name="Good eggs" stackId="e" fill={COL.green} /><Bar dataKey="broken" name="Broken" stackId="e" fill={COL.red} radius={[4, 4, 0, 0]} /><Line yAxisId="r" dataKey="hdp" name="Hen-day %" stroke={COL.dark} strokeWidth={2} dot={false} connectNulls /></ComposedChart></ChartCard>
@@ -65,7 +68,7 @@ export default function Dash({ orders, txns, batchId = "", farmId = "" }) {
 
       <h3 className="sh">Money</h3>
       <div className="kpis">
-        <Kpi l="Revenue" v={inr(sm("revenue"))} /><Kpi l="Expenses" v={inr(sm("expense"))} /><Kpi l={profit >= 0 ? "Profit" : "Net loss"} v={inr(Math.abs(profit))} t={profit >= 0 ? "good" : "bad"} /><Kpi l="Running cost per tray" v={trP ? inr(sm("opCost") / trP) : "–"} hint="feed used plus labour, power and other costs" /><Kpi l="Profit per tray sold" v={trS ? inr(profit / trS) : "–"} />
+        <Kpi l="Revenue" v={inr(sm("revenue"))} /><Kpi l="Expenses" v={inr(sm("expense"))} /><Kpi l={profit >= 0 ? "Profit" : "Net loss"} v={inr(Math.abs(profit))} t={profit >= 0 ? "good" : "bad"} hint={why && <Bi en={why.en} hi={why.hi} />} /><Kpi l="Running cost per tray" v={trP ? inr(sm("opCost") / trP) : "–"} hint="feed used plus labour, power and other costs" /><Kpi l="Profit per tray sold" v={trS ? inr(profit / trS) : "–"} />
       </div>
       <div className="two">
         <ChartCard title="Revenue, expenses and profit"><ComposedChart data={s}>{G}{X}{Y}<Tooltip {...money} /><Legend /><Bar dataKey="revenue" name="Revenue" fill={COL.green} radius={[4, 4, 0, 0]} /><Bar dataKey="expense" name="Expenses" fill={COL.yolk} radius={[4, 4, 0, 0]} /><Line dataKey="profit" name="Profit" stroke={COL.dark} strokeWidth={3} dot={false} /></ComposedChart></ChartCard>

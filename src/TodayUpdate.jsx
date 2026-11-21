@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from "react";
-import { useFarmData, useAnalysis, TRAY, EXP_CATS, FEED_CAT, MED_CAT, LABOR_CAT, PACK_CAT, rawStock } from "./farm.js";
+import { useFarmData, useAnalysis, TRAY, PER_BOX, EMPTY_PER_BOX, EGGS_PER_BOX, packEggs, packText, EXP_CATS, FEED_CAT, MED_CAT, LABOR_CAT, PACK_CAT, rawStock } from "./farm.js";
 import { inr, today, uid } from "./store.js";
-import { Kpi, Alerts, nf } from "./kit.jsx";
+import { Kpi, Alerts, nf, Pack } from "./kit.jsx";
+import { Bi } from "./i18n.jsx";
+import PriorityActions from "./Priority.jsx";
 import { Msg, Num, Qty, Sect } from "./ui.jsx";
-import { WUNITS, toBase, kgText } from "./units.js";
+import { WUNITS, LUNITS, PUNITS, toBase, kgText } from "./units.js";
 import { n, addExpense, addPurchase, makeFeed, makeSaleOrder, unitPrice, saleEggs } from "./actions.js";
 
 const CAUSES = ["Not known", "Sickness", "Heat or cold", "Accident or animal", "Old age", "Other"];
@@ -16,7 +18,7 @@ export default function TodayUpdate({ batchId, orders, setOrders, txns, products
   const existing = F.logs.find((l) => l.date === date && l.batchId === batchId);
   const layer = F.types.find((t) => /layer/i.test(t.name))?.id || F.types[0]?.id || "";
   const [f, setF] = useState(blank(layer)); const [extra, setExtra] = useState({});
-  const [sales, setSales] = useState([]); const [exps, setExps] = useState([]); const [buy, setBuy] = useState({ feedType: layer, feed: { q: "", u: "Kg" }, feedCost: "", rawLines: [], trays: "", trayCost: "", boxes: "", boxCost: "", trayLost: "", boxLost: "" });
+  const [sales, setSales] = useState([]); const [exps, setExps] = useState([]); const [buy, setBuy] = useState({ feedType: layer, feed: { q: "", u: "Kg" }, feedCost: "", rawLines: [], trays: { q: "", u: "Piece" }, trayCost: "", boxes: { q: "", u: "Piece" }, boxCost: "", trayLost: "", boxLost: "" });
   const [mx, setMx] = useState({ on: false, feedType: layer, kg: "", recipe: "", lines: [] }); const [msg, setMsg] = useState("");
   useEffect(() => {
     setF(existing ? { eggs: String(existing.eggs ?? ""), broken: String(existing.broken ?? ""), deaths: String(existing.deaths ?? ""), cause: existing.cause || "Not known", culled: String(existing.culled ?? ""), feedType: existing.feedType, feed: { q: String(existing.feedKg ?? ""), u: "Kg" }, note: existing.note || "" } : blank(layer));
@@ -24,7 +26,7 @@ export default function TodayUpdate({ batchId, orders, setOrders, txns, products
   }, [date, batchId, existing?.id]);
   if (!batch) return <p className="muted">Open a farm first.</p>;
 
-  const perBox = +F.boxCfg.perBox || 9;
+  const perBox = PER_BOX; // 1 box = 7 filled trays + 2 empty trays
   const customers = [{ id: "", name: "Walk-in sale", phone: "", address: "Farm gate" }, ...F.cust];
   const row = A.rows.find((r) => r.date === date) || {};
   const dayLogs = F.logs.filter((l) => l.date === date && l.batchId === batchId);
@@ -34,7 +36,7 @@ export default function TodayUpdate({ batchId, orders, setOrders, txns, products
   const upExp = (id, k, v) => setExps(exps.map((s) => (s.id === id ? { ...s, [k]: v } : s)));
   const addRaw = () => setBuy({ ...buy, rawLines: [...buy.rawLines, { id: uid(), itemId: F.raw[0]?.id || "", q: "", u: "Kg", cost: "" }] });
   const upRaw = (id, k, v) => setBuy({ ...buy, rawLines: buy.rawLines.map((s) => (s.id === id ? { ...s, [k]: v } : s)) });
-  const unitsOf = (itemId) => (F.raw.find((r) => r.id === itemId)?.unit === "ltr" ? ["Litre"] : WUNITS);
+  const unitsOf = (itemId) => (F.raw.find((r) => r.id === itemId)?.unit === "ltr" ? LUNITS : WUNITS);
   const pickRecipe = (id) => { const r = F.recipes.find((x) => x.id === id); if (!r) return setMx({ ...mx, recipe: "", lines: [] }); const kg = n(mx.kg) || 100, sc = kg / 100; setMx({ ...mx, recipe: id, feedType: r.feedType || mx.feedType, kg: String(kg), lines: r.lines.map((l) => ({ id: uid(), itemId: l.itemId, qty: String(Math.round(l.kg * sc * 100) / 100) })) }); };
   const rescale = (kg) => { const r = F.recipes.find((x) => x.id === mx.recipe); setMx({ ...mx, kg, lines: r && n(kg) > 0 ? r.lines.map((l) => ({ id: uid(), itemId: l.itemId, qty: String(Math.round(l.kg * (n(kg) / 100) * 100) / 100) })) : mx.lines }); };
   const stockHere = rawStock({ rawBuy: F.rawBuy, mix: F.mix }, batch.farmId);
@@ -64,8 +66,8 @@ export default function TodayUpdate({ batchId, orders, setOrders, txns, products
     if (n(buy.feed.q) > 0) { addPurchase(F, batch, "feed", { ...sup, feedType: buy.feedType, kg: toBase(buy.feed.q, buy.feed.u), cost: buy.feedCost }); done.push("feed bought"); }
     buy.rawLines.filter((l) => n(l.q) > 0).forEach((l) => addPurchase(F, batch, "raw", { ...sup, itemId: l.itemId, qty: toBase(l.q, l.u), cost: l.cost }));
     if (buy.rawLines.some((l) => n(l.q) > 0)) done.push("raw materials bought");
-    if (n(buy.trays) > 0) { addPurchase(F, batch, "trays", { ...sup, qty: buy.trays, cost: buy.trayCost }); done.push("trays bought"); }
-    if (n(buy.boxes) > 0) { addPurchase(F, batch, "boxes", { ...sup, qty: buy.boxes, cost: buy.boxCost }); done.push("boxes bought"); }
+    if (toBase(buy.trays.q, buy.trays.u) > 0) { addPurchase(F, batch, "trays", { ...sup, qty: toBase(buy.trays.q, buy.trays.u), cost: buy.trayCost }); done.push("trays bought"); }
+    if (toBase(buy.boxes.q, buy.boxes.u) > 0) { addPurchase(F, batch, "boxes", { ...sup, qty: toBase(buy.boxes.q, buy.boxes.u), cost: buy.boxCost }); done.push("boxes bought"); }
     if (n(buy.trayLost) > 0) { F.setTrayAdj((a) => [{ id: uid(), date, qty: -n(buy.trayLost), reason: "Damaged" }, ...a]); done.push("damaged trays"); }
     if (n(buy.boxLost) > 0) { F.setBoxAdj((a) => [{ id: uid(), date, qty: -n(buy.boxLost), reason: "Damaged" }, ...a]); done.push("damaged boxes"); }
     // 5. expenses
@@ -74,7 +76,7 @@ export default function TodayUpdate({ batchId, orders, setOrders, txns, products
     if (goodE.length) done.push(`${goodE.length} expense(s)`);
     if (!done.length) return setMsg("e|Nothing to save yet. Fill in some of today's numbers first.");
     setSales([]); setExps([]); setMx({ ...mx, on: false, kg: "", recipe: "", lines: [] });
-    setBuy({ feedType: layer, feed: { q: "", u: "Kg" }, feedCost: "", rawLines: [], trays: "", trayCost: "", boxes: "", boxCost: "", trayLost: "", boxLost: "" });
+    setBuy({ feedType: layer, feed: { q: "", u: "Kg" }, feedCost: "", rawLines: [], trays: { q: "", u: "Piece" }, trayCost: "", boxes: { q: "", u: "Piece" }, boxCost: "", trayLost: "", boxLost: "" });
     setMsg(`s|Saved for ${date}: ${done.join(", ")}. Stock, money and reports are updated.`);
   };
   const prod = products.find((p) => p.id === sales[0]?.productId) || products[0];
@@ -83,18 +85,19 @@ export default function TodayUpdate({ batchId, orders, setOrders, txns, products
 
   return (
     <>
-      <div className="bar"><h2>Today's Update <small className="hi">आज का हिसाब</small></h2>
+      <div className="bar"><h2>Today's Update</h2>
         <label className="inl">Date<input type="date" value={date} max={today()} onChange={(e) => setDate(e.target.value || today())} /></label></div>
-      <p className="muted">Fill in what happened today and press <b>Save</b> at the bottom. Leave empty what did not happen. Stock, money and reports update by themselves.</p>
+      <p className="muted">Fill in what happened today and press Save at the bottom. Leave empty what did not happen. Stock, money and reports update by themselves.</p>
+      <PriorityActions A={A} orders={orders} batchId={batchId} />
       <Alerts list={A.alerts} />
       {!!openTasks.length && <div className="alerts">{openTasks.map((t) => <div key={t.id} className="alert info">Reminder: {t.title}</div>)}</div>}
-      <div className="kpis"><Kpi l={date === today() ? "Eggs today" : "Eggs that day"} v={nf(row.eggs)} /><Kpi l="Birds died" v={nf(row.deaths)} t={row.deaths ? "bad" : "good"} /><Kpi l="Eggs ready to sell" v={nf(A.tot.stockTrays) + " trays"} t={A.tot.stockTrays < 20 ? "bad" : "good"} /><Kpi l="Feed left" v={nf(A.tot.feedLeft) + " kg"} /></div>
+      <div className="kpis"><Kpi l={date === today() ? "Eggs today" : "Eggs that day"} v={nf(row.eggs)} /><Kpi l="Birds died" v={nf(row.deaths)} t={row.deaths ? "bad" : "good"} /><Kpi l="Eggs ready to sell" v={nf(A.tot.stockTrays) + " trays"} t={A.tot.stockTrays < 20 ? "bad" : "good"} hint={<Pack eggs={A.tot.stockEggs} />} /><Kpi l="Feed left" v={nf(A.tot.feedLeft) + " kg"} /></div>
       {existing && <p className="hint">You already saved eggs, birds and feed for this day. Saving again will replace those numbers (sales and expenses are added, not replaced).</p>}
 
       <Sect n="1" title="Eggs" hint="How many eggs today" open>
         <Num label="Eggs collected" v={f.eggs} set={setFv("eggs")} />
         <Num label="Eggs broken" v={f.broken} set={setFv("broken")} />
-        {n(f.eggs) > 0 && <p className="muted wide">That is {nf((n(f.eggs) - n(f.broken)) / TRAY, 1)} trays of good eggs. They are added to your stock.</p>}
+        {n(f.eggs) > 0 && <EggPack today={Math.max(0, n(f.eggs) - n(f.broken))} before={A.tot.stockEggs - Math.max(0, (existing ? n(existing.eggs) - n(existing.broken) : 0))} />}
       </Sect>
 
       <Sect n="2" title="Birds" hint="Deaths and birds sold" open>
@@ -105,7 +108,7 @@ export default function TodayUpdate({ batchId, orders, setOrders, txns, products
 
       <Sect n="3" title="Feed given today" hint="How much feed the birds ate" open>
         <label>Which feed<select value={f.feedType} onChange={(e) => setFv("feedType")(e.target.value)}>{F.types.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}</select></label>
-        <Qty label="How much" v={f.feed} set={setFv("feed")} hint={f.feed.q ? `= ${kgText(toBase(f.feed.q, f.feed.u))}` : "Kg, Quintal or Ton"} />
+        <Qty label="How much" v={f.feed} set={setFv("feed")} hint={f.feed.q ? `= ${kgText(toBase(f.feed.q, f.feed.u))}` : "Pick Kg, Quintal, Ton, Bag, Maund or Gram"} />
       </Sect>
 
       <Sect n="4" title="Sales today" hint="Eggs sold. Boxes, trays and eggs go down automatically">
@@ -116,11 +119,11 @@ export default function TodayUpdate({ batchId, orders, setOrders, txns, products
             <div className="line3" key={s.id}>
               <label>Customer<select value={s.custId} onChange={(e) => upSale(s.id, "custId", e.target.value)}>{customers.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}</select></label>
               {products.length > 1 && <label>Egg type<select value={s.productId} onChange={(e) => upSale(s.id, "productId", e.target.value)}>{products.map((q) => <option key={q.id} value={q.id}>{q.name}</option>)}</select></label>}
-              <label>Sold in<select value={s.unit} onChange={(e) => upSale(s.id, "unit", e.target.value)}><option value="Box">Box ({perBox} trays = {perBox * TRAY} eggs)</option><option value="Tray">Tray ({TRAY} eggs)</option><option value="Egg">Single eggs</option></select></label>
+              <label>Sold in<select value={s.unit} onChange={(e) => upSale(s.id, "unit", e.target.value)}><option value="Box">{`Box (${perBox} filled trays + ${EMPTY_PER_BOX} empty = ${EGGS_PER_BOX} eggs)`}</option><option value="Tray">{`Tray (${TRAY} eggs)`}</option><option value="Egg">Single eggs</option></select></label>
               <Num label="How many" v={s.qty} set={(v) => upSale(s.id, "qty", v)} />
               <Num label={`Price per ${s.unit.toLowerCase()} (₹)`} v={s.price} set={(v) => upSale(s.id, "price", v)} placeholder={String(up)} />
               <label>Payment<select value={s.paid} onChange={(e) => upSale(s.id, "paid", e.target.value)}><option value="Paid">Money received</option><option value="Pending">Money pending (udhaar)</option></select></label>
-              <p className="muted">{n(s.qty) > 0 ? `${nf(saleEggs(s, perBox))} eggs = ${nf(saleEggs(s, perBox) / TRAY, 1)} trays${s.unit === "Box" ? ` · ${nf(n(s.qty))} boxes` : ""} · Total ${inr(tot)}` : ""}</p>
+              <p className="muted">{n(s.qty) > 0 ? `${nf(saleEggs(s, perBox))} eggs = ${nf(saleEggs(s, perBox) / TRAY, 1)} trays${s.unit === "Box" ? ` · ${nf(n(s.qty))} boxes (uses ${nf(n(s.qty) * EMPTY_PER_BOX)} empty trays for protection)` : ""} · Total ${inr(tot)}` : ""}</p>
               <button type="button" className="link" onClick={() => setSales(sales.filter((q) => q.id !== s.id))}>Remove</button>
             </div>); })}
           {!!products.length && <button type="button" className="btn sm ghost" onClick={addSale}>+ Add a sale</button>}
@@ -159,8 +162,8 @@ export default function TodayUpdate({ batchId, orders, setOrders, txns, products
           <button type="button" className="btn sm ghost" onClick={addRaw}>+ Add raw material</button>
         </div>
         <h4 className="wide">Empty trays and boxes</h4>
-        <Num label="Trays bought" v={buy.trays} set={(v) => setBuy({ ...buy, trays: v })} /><Num label="Trays cost (₹)" v={buy.trayCost} set={(v) => setBuy({ ...buy, trayCost: v })} />
-        <Num label="Boxes bought" v={buy.boxes} set={(v) => setBuy({ ...buy, boxes: v })} /><Num label="Boxes cost (₹)" v={buy.boxCost} set={(v) => setBuy({ ...buy, boxCost: v })} />
+        <Qty label="Trays bought" v={buy.trays} units={PUNITS} set={(v) => setBuy({ ...buy, trays: v })} /><Num label="Trays cost (₹)" v={buy.trayCost} set={(v) => setBuy({ ...buy, trayCost: v })} />
+        <Qty label="Boxes bought" v={buy.boxes} units={PUNITS} set={(v) => setBuy({ ...buy, boxes: v })} /><Num label="Boxes cost (₹)" v={buy.boxCost} set={(v) => setBuy({ ...buy, boxCost: v })} />
         <Num label="Trays damaged" v={buy.trayLost} set={(v) => setBuy({ ...buy, trayLost: v })} /><Num label="Boxes damaged" v={buy.boxLost} set={(v) => setBuy({ ...buy, boxLost: v })} />
       </Sect>
 
@@ -204,9 +207,20 @@ function SavedToday({ date, batchId, F, orders, setOrders }) {
     ...F.boxes.filter(mine).map((x) => ({ k: "x" + x.id, t: "Boxes bought", text: `${x.qty}, ${inr(x.cost)}`, del: () => F.setBoxes((a) => a.filter((q) => q.id !== x.id)) })),
   ];
   return (
-    <section className="card"><h3>Already saved for {date}</h3>
+    <section className="card"><h3>{`Already saved for ${date}`}</h3>
       {!items.length && <p className="muted">Sales, expenses and purchases you save will be listed here. Made a mistake? Delete the line and enter it again.</p>}
       {items.map((i) => <div className="line" key={i.k}><span><b>{i.t}:</b> {i.text}</span><button className="link" onClick={() => confirm("Delete this entry? Stock and money will adjust automatically.") && i.del()}>Delete</button></div>)}
     </section>
+  );
+}
+
+/* the farmer types the eggs; this shows them as trays and boxes, and how the leftover eggs join the eggs already in stock */
+function EggPack({ today: good, before }) {
+  const now = packEggs(good), tot = packEggs(before + good), t = packText(now), t2 = packText(tot);
+  return (
+    <div className="wide packbox">
+      <p><Bi en={`${nf(good)} good eggs = ${now.trays} ${now.trays === 1 ? "tray" : "trays"} (30 eggs each) = ${t.en}.`} hi={`${nf(good)} अच्छे अंडे = ${now.trays} ट्रे (हर ट्रे में 30 अंडे) = ${t.hi}।`} /></p>
+      {before > 0 && <p><Bi en={`With the eggs already in stock (${nf(before)}), you will have ${t2.en}. Leftover eggs add up and make new trays and boxes by themselves.`} hi={`स्टॉक के पहले वाले ${nf(before)} अंडों को मिलाकर आपके पास होगा: ${t2.hi}। बचे हुए अंडे जुड़ते जाते हैं और अपने आप नई ट्रे और डिब्बा बना देते हैं।`} /></p>}
+    </div>
   );
 }

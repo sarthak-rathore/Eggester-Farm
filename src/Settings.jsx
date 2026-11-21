@@ -26,7 +26,7 @@ export default function Settings({ d, sub, go }) {
   const [tickets, setTickets] = useLS("kf_tickets", []);
   if (!sub) return (
     <>
-      <div className="bar"><h2>Settings <small className="hi">सेटिंग</small></h2></div>
+      <div className="bar"><h2>Settings</h2></div>
       <div className="tiles">{TILES.filter(([k]) => CUSTOMERS || k !== "help").map(([k, i, t, hi, s]) => <Tile key={k} icon={<Ia n={i} s={28} />} title={t} hi={hi} sub={s} onClick={() => go("settings/" + k)} badge={k === "help" ? tickets.filter((x) => x.status === "Open").length : 0} />)}</div>
     </>
   );
@@ -63,7 +63,7 @@ function Notify({ F }) {
     <form className="card form grid2" onSubmit={(e) => { e.preventDefault(); F.setNotif({ ...v, feedDays: +v.feedDays || 7, trayLow: +v.trayLow || 0, boxLow: +v.boxLow || 0, emptyTrayLow: +v.emptyTrayLow || 0 }); setM("s|Saved."); }}>
       <h3 className="wide">Warn me on the home screen when…</h3>
       <Num label="Feed will last fewer than (days)" v={v.feedDays} set={(x) => setV({ ...v, feedDays: x })} /><Num label="Eggs in stock fewer than (trays)" v={v.trayLow} set={(x) => setV({ ...v, trayLow: x })} />
-      <Num label="Empty boxes fewer than" v={v.boxLow} set={(x) => setV({ ...v, boxLow: x })} /><Num label="Empty trays fewer than" v={v.emptyTrayLow} set={(x) => setV({ ...v, emptyTrayLow: x })} />
+      <Num label="Empty boxes (7 trays + 2 empty each) fewer than" v={v.boxLow} set={(x) => setV({ ...v, boxLow: x })} /><Num label="Empty trays fewer than" v={v.emptyTrayLow} set={(x) => setV({ ...v, emptyTrayLow: x })} />
       <label className="radio wide"><input type="checkbox" checked={v.mortality} onChange={(e) => setV({ ...v, mortality: e.target.checked })} />Warn me when more birds die than usual</label>
       <label className="radio wide"><input type="checkbox" checked={v.remind} onChange={(e) => setV({ ...v, remind: e.target.checked })} />Show my reminders (tasks) in Today's Update</label>
       <div className="row wide"><button className="btn sm">Save</button></div><div className="wide"><Msg m={m} /></div></form>

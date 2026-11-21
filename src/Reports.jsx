@@ -1,10 +1,11 @@
 import React, { useState, useMemo, lazy, Suspense } from "react";
 import { BarChart, Bar, ComposedChart, Line, XAxis, YAxis, Tooltip, Legend, CartesianGrid } from "recharts";
-import { useFarmData, useAnalysis, ledger, rawStock, TRAY, EXP_CATS } from "./farm.js";
+import { useFarmData, useAnalysis, ledger, rawStock, TRAY, EXP_CATS, packEggs, packText } from "./farm.js";
 import { inr, today } from "./store.js";
 import { COL, ChartCard, nf, RangeFilter, rangeOf, inRange } from "./charts.jsx";
 import { kgText, qtyText } from "./units.js";
 import { Ia } from "./adminIcons.jsx";
+import { Bi } from "./i18n.jsx";
 const Dash = lazy(() => import("./Dash.jsx"));
 const sum = (a, f) => a.reduce((x, y) => x + (+f(y) || 0), 0);
 const G = <CartesianGrid strokeDasharray="3 3" vertical={false} />;
@@ -32,7 +33,7 @@ export default function Reports({ batchId = "", d }) {
   if (kind === "exp") { const by = {}; L.filter((x) => x.type === "expense").forEach((x) => (by[x.category] = (by[x.category] || 0) + x.amount)); const tot = sum(Object.values(by), (v) => v); R = { heads: ["What for", "Amount", "Share"], rows: [...Object.entries(by).sort((a, b) => b[1] - a[1]).map(([k, v]) => [k, inr(v), nf((v / (tot || 1)) * 100, 0) + "%"]), ["Total", inr(tot), ""]] }; }
   if (kind === "feed") { const use = {}; F.logs.filter((l) => inRange(l.date, r) && (!batchId || l.batchId === batchId)).forEach((l) => (use[l.feedType] = (use[l.feedType] || 0) + (+l.feedKg || 0))); R = { heads: ["Date", "Feed given (kg)", "Feed cost", "Grams per bird"], rows: rows.map((x) => [x.date, nf(x.feedKg, 1), inr(x.feedCost), x.alive ? nf((x.feedKg * 1000) / x.alive) : "–"]), note: "Feed cost uses your average price per kg, including feed you made yourself. By type: " + (Object.entries(use).map(([k, v]) => `${F.types.find((t) => t.id === k)?.name || k} ${kgText(v)}`).join(", ") || "–") }; }
   if (kind === "mort") { const m = month(7); R = { heads: ["Month", "Birds died"], rows: m.map((x) => [x.k, nf(x.deaths)]), note: `Total mortality so far: ${nf(A.tot.mortPct, 1)}% of ${nf(A.tot.purchased)} birds bought. Value lost: ${inr(A.tot.mortalityValue)}.` }; }
-  if (kind === "stock") { const rs = rawStock({ rawBuy: F.rawBuy, mix: F.mix }, batch?.farmId || ""); R = { heads: ["Item", "Available"], rows: [["Eggs", `${nf(A.tot.stockTrays)} trays (${nf(A.tot.stockEggs)} eggs)`], ["Birds alive", nf(A.tot.alive)], ...A.feedTable.map((x) => [`Feed: ${x.name}`, kgText(x.left)]), ...F.raw.map((x) => [`Raw: ${x.name}`, qtyText(rs[x.id] || 0, x.unit)]), ["Empty trays", nf(A.tot.trayEmpty)], ["Empty boxes", nf(A.tot.boxStock)]] }; }
+  if (kind === "stock") { const rs = rawStock({ rawBuy: F.rawBuy, mix: F.mix }, batch?.farmId || ""); R = { heads: ["Item", "Available"], rows: [["Eggs", `${nf(A.tot.stockTrays)} trays (${nf(A.tot.stockEggs)} eggs)`], ["Eggs packed as", <Bi en={packText(packEggs(A.tot.stockEggs)).en} hi={packText(packEggs(A.tot.stockEggs)).hi} />], ["Birds alive", nf(A.tot.alive)], ...A.feedTable.map((x) => [`Feed: ${x.name}`, kgText(x.left)]), ...F.raw.map((x) => [`Raw: ${x.name}`, qtyText(rs[x.id] || 0, x.unit)]), ["Empty trays", nf(A.tot.trayEmpty)], ["Empty boxes", nf(A.tot.boxStock)]] }; }
   const name = (batch ? batch.name + "-" : "") + kind;
   return (
     <>

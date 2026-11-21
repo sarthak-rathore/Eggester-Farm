@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { FARM, DEMO, DEMO_OWNER } from "./config.js";
 import { Ia } from "./adminIcons.jsx";
-import { useLS, setKey, reloadAll } from "./store.js";
+import { useLS, setKey, reloadAll, localYmd } from "./store.js";
 import { useAnalysis } from "./farm.js";
 
 const SKIP = ["kf_session", "kf_cart", "kf_pin", "kf_tok"]; // never put into (or read from) a backup file

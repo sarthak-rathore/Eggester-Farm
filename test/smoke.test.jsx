@@ -17,7 +17,7 @@ async function boot(demo = "on") {
   const App = (await import("../src/App.jsx")).default;
   return render(<App />);
 }
-const login = async () => { await goto("#/admin"); fireEvent.click(await screen.findByRole("button", { name: /^Log in$/ })); await screen.findByText(/Good (morning|afternoon|evening)/); };
+const login = async () => { await goto("#/admin"); fireEvent.click(await screen.findByRole("button", { name: /^Log in/ })); await screen.findByText(/Good (morning|afternoon|evening)/); };
 const settle = () => act(async () => { await new Promise((r) => setTimeout(r, 60)); });
 const ids = () => JSON.parse(localStorage.getItem("kf_batches") || "[]").map((b) => b.id);
 

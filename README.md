@@ -31,7 +31,9 @@ Open `/#/admin`. Four big buttons are always visible (bottom bar on phones):
 
 ### Enter once, everything updates
 The farmer only fills **Today's Update** (eggs, birds, feed, sales, expenses, purchases, feed made). The app then does the rest:
-- 1 tray = 30 eggs, 1 box = 9 trays = 270 eggs. Selling 3 boxes lowers eggs, trays and boxes, adds the sale, revenue, profit, stock and reports.
+- Packing rule (used everywhere): 1 tray = 30 eggs. 1 box = 9 trays = 7 trays filled with eggs (210 eggs) + 2 empty trays for protection. Selling 3 boxes lowers eggs (630), trays (21 filled + 6 protection) and boxes (3), adds the sale, revenue, profit, stock and reports.
+- Eggs are turned into trays and boxes automatically: 212 eggs = 7 trays = 1 box (7 filled + 2 empty) + 2 eggs left. Leftover eggs stay in the stock total, so they add up across days and form new trays and boxes by themselves. Today's Update shows this live while you type, and Stock, Overview and Reports show it too.
+- Purchase forms take many units: Kg, Quintal, Ton, Gram, Maund (40 kg), Bags (25/30/40/50 kg); Litre, ml, Cans, Tins, Drum; Piece, Dozen, Bundles for trays and boxes. Everything is saved in kg, litres or pieces.
 - Raw materials (Kg / Quintal / Ton / Litre) -> "Make feed" lowers raw stock, raises feed stock and works out the feed cost. Raw purchases are the expense, so cost is never counted twice.
 - Buying feed, raw material, trays or boxes adds to stock and to expenses. Medicine adds an expense and an optional reminder.
 - Sales can be marked "money pending" and show under Sales > Money to receive.
@@ -77,3 +79,9 @@ The first time this version opens, farm records in the browser are reset to fres
 
 ## Customers
 Wholesale only: egg trays of 30, minimum order and bulk price tiers per product, stock taken live from the egg stock.
+
+
+## Hindi + English, priority card, loss notes
+- A toggle (हिंदी + English / सिर्फ हिंदी) sits in the menu, the phone header and the login screens. Hindi words live in `src/hi.js` (one line per term); anything not listed stays in English. The choice is remembered on the device.
+- "Today's Priority Actions" is the first card on Home, Overall Farm Overview, each batch Overview and Today's Update: at most 3 jobs (pending daily update, online orders to approve, due tasks such as cleaning water tanks, low feed, sick birds, low laying, missing trays/boxes, money to collect), each with a button that opens the right page. Logic in `src/Priority.jsx`.
+- Big red Loss figures carry a one-line reason (for example bulk feed or raw material buying and how much is still in store). Low laying warnings come with up to 3 simple fixes. Logic in `src/insights.js` and `layingAdvice` in `src/farm.js`.

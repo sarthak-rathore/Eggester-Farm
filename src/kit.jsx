@@ -1,10 +1,18 @@
 import React from "react";
 import { addDays } from "./farm.js";
 import { today } from "./store.js";
+import { Bi, pick, useLang } from "./i18n.jsx";
+import { packEggs, packText } from "./farm.js";
 export const COL = { green: "#3E8E6B", dark: "#123A2B", yolk: "#FFC21A", red: "#E5383B", blue: "#2F6FDE", orange: "#E58A1F", grey: "#8AA096" };
 export const PIE = ["#123A2B", "#FFC21A", "#E5383B", "#3E8E6B", "#2F6FDE", "#E58A1F", "#8AA096"];
 export const Kpi = ({ l, v, t, hint }) => <div className={"kpi " + (t || "")}><span>{l}</span><b>{v}</b>{hint && <small className="muted">{hint}</small>}</div>;
-export const Alerts = ({ list }) => (list.length ? <div className="alerts">{list.map((a, i) => <div key={i} className={"alert " + a.level}>{a.text}</div>)}</div> : null);
+export const Alerts = ({ list }) => {
+  useLang();
+  return list.length ? <div className="alerts">{list.map((a, i) => <div key={i} className={"alert " + a.level}>{a.hi ? pick(a.text, a.hi) : a.text}
+    {!!a.advice?.length && <ul className="advice">{a.advice.map((x, j) => <li key={j}>{pick(x)}</li>)}</ul>}</div>)}</div> : null;
+};
+/* eggs shown as boxes, trays and leftover eggs, e.g. 212 eggs = "1 box (7 filled + 2 empty trays each) + 2 eggs left" */
+export const Pack = ({ eggs }) => { const t = packText(packEggs(eggs)); return <Bi en={t.en} hi={t.hi} />; };
 export const nf = (v, d = 0) => { d = typeof d === "number" ? d : 0; return nfx(v, d); };
 const nfx = (v, d) => (v === null || v === undefined || !isFinite(v) ? "–" : Number(v).toLocaleString("en-IN", { maximumFractionDigits: d }));
 

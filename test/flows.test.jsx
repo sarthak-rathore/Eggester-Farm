@@ -49,9 +49,9 @@ describe("demo mode off = clean system", () => {
     await boot("off"); await goto("#/admin"); await screen.findByLabelText(/Your email/);
     fireEvent.change(screen.getByLabelText(/Your email/), { target: { value: "owner@x.com" } }); fireEvent.click(screen.getByRole("button", { name: /Send me a code/ })); await settle();
     const box = await screen.findByLabelText(/Enter the code/); expect(document.body.textContent).toContain("ow•••@x.com");
-    fireEvent.change(box, { target: { value: "000000" } }); fireEvent.click(screen.getByRole("button", { name: /^Log in$/ })); await settle();
+    fireEvent.change(box, { target: { value: "000000" } }); fireEvent.click(screen.getByRole("button", { name: /^Log in/ })); await settle();
     expect(document.body.textContent).toContain("not correct"); expect(document.body.textContent).not.toMatch(/Error|stack|undefined/);
-    fireEvent.change(screen.getByLabelText(/Enter the code/), { target: { value: "123456" } }); fireEvent.click(screen.getByRole("button", { name: /^Log in$/ })); await settle();
+    fireEvent.change(screen.getByLabelText(/Enter the code/), { target: { value: "123456" } }); fireEvent.click(screen.getByRole("button", { name: /^Log in/ })); await settle();
     await screen.findByText(/Good (morning|afternoon|evening)/); expect(document.body.textContent).toContain("set up your farm");
     expect(calls.some((c) => c.endsWith("send-otp"))).toBe(true);
   });
@@ -71,29 +71,31 @@ describe("demo mode off = clean system", () => {
 describe("live mode: set up a farm and do a day's work", () => {
   it("add farm and batch in Settings, then Today's Update updates stock, sales and money", async () => {
     vi.stubGlobal("fetch", vi.fn(async () => ({ ok: true, status: 200, json: async () => ({ ok: true }) })));
-    asOwner(); await boot("off"); await goto("#/admin/settings/farms"); await screen.findByText("Your farms");
+    asOwner(); await boot("off"); await goto("#/admin/settings/farms"); await screen.findByText(/^Your farms/);
     // add a farm through the screen
-    fireEvent.click((await screen.findAllByText("Add new"))[0]); fireEvent.change(screen.getByLabelText("Farm name"), { target: { value: "Main Farm" } }); fireEvent.click(screen.getAllByRole("button", { name: "Save" })[0]); await settle();
+    fireEvent.click((await screen.findAllByText(/^Add new/))[0]); fireEvent.change(screen.getByLabelText(/^Farm name/), { target: { value: "Main Farm" } }); fireEvent.click(screen.getAllByRole("button", { name: /^Save/ })[0]); await settle();
     expect(get("kf_farms")[0].name).toBe("Main Farm");
     // add a batch through the screen
-    fireEvent.click(screen.getAllByText("Add new")[1]);
-    fireEvent.change(screen.getByLabelText(/Batch name/), { target: { value: "Batch A" } }); fireEvent.change(screen.getByLabelText("How many chicks"), { target: { value: "1000" } }); fireEvent.change(screen.getByLabelText(/Cost per chick/), { target: { value: "40" } });
-    fireEvent.click(screen.getAllByRole("button", { name: "Save" })[0]); await settle();
+    fireEvent.click(screen.getAllByText(/^Add new/)[1]);
+    fireEvent.change(screen.getByLabelText(/Batch name/), { target: { value: "Batch A" } }); fireEvent.change(screen.getByLabelText(/^How many chicks/), { target: { value: "1000" } }); fireEvent.change(screen.getByLabelText(/Cost per chick/), { target: { value: "40" } });
+    fireEvent.click(screen.getAllByRole("button", { name: /^Save/ })[0]); await settle();
     const batch = get("kf_batches")[0]; expect(batch.name).toBe("Batch A"); expect(batch.count).toBe(1000);
     // an egg price (tray of 30 = Rs 200)
     localStorage.setItem("kf_products", JSON.stringify([{ id: "p1", name: "Eggs", price: 200, moq: 1, eggs: 30, unit: "tray", active: "Yes", emoji: "🥚", tiers: "" }]));
     vi.resetModules(); document.body.innerHTML = ""; await boot("off");
     await goto(`#/admin/farm/${batch.id}/today`); await settle(100);
-    fireEvent.change(screen.getByLabelText("Eggs collected"), { target: { value: "540" } }); fireEvent.change(screen.getByLabelText("Eggs broken"), { target: { value: "10" } });
+    fireEvent.change(await screen.findByLabelText(/^Eggs collected/), { target: { value: "540" } }); fireEvent.change(screen.getByLabelText(/^Eggs broken/), { target: { value: "10" } });
     fireEvent.click(screen.getByRole("button", { name: /Add a sale/ }));
-    fireEvent.change(screen.getByLabelText("How many"), { target: { value: "1" } }); // 1 box (the sale line's quantity is the only field with this label before purchases)
+    fireEvent.change(screen.getByLabelText(/^How many/), { target: { value: "1" } }); // 1 box (the sale line's quantity is the only field with this label before purchases)
     fireEvent.click(screen.getByRole("button", { name: /Save today's update/ })); await settle(100);
     const log = get("kf_logs")[0]; expect(log.eggs).toBe(540); expect(log.broken).toBe(10);
-    const o = get("kf_orders")[0]; expect(o.items[0].unit).toBe("box"); expect(o.items[0].eggs * o.items[0].qty).toBe(270); expect(o.total).toBe(1800); // 9 trays x Rs 200
+    const o = get("kf_orders")[0]; expect(o.items[0].unit).toBe("box"); expect(o.items[0].eggs * o.items[0].qty).toBe(210); expect(o.total).toBe(1400); // 1 box = 7 filled trays (+2 empty) = 210 eggs; 7 trays x Rs 200
     expect(document.body.textContent).toContain("Saved for");
     // the numbers on the dashboard follow
-    await goto(`#/admin/farm/${batch.id}/stock`); await screen.findByText("Available now");
-    expect(document.body.textContent).toMatch(/Available now\s*8[\s\S]*trays/); // (530 good - 270 sold) / 30 = 8.67 -> 8 trays
+    await goto(`#/admin/farm/${batch.id}/stock`); await screen.findByText(/^Available now/);
+    expect(document.body.textContent).toMatch(/Available now[\s\S]*?10[\s\S]*?trays/); // (530 good - 210 sold) = 320 eggs = 10 trays + 20 eggs
+    expect(document.body.textContent).toMatch(/320 eggs = 1 box \+ 3 loose trays \+ 20 eggs left/); // 7 trays = 1 box, the rest stays loose
+    expect(get("kf_boxes") || []).toEqual([]);
     expect(real()).toEqual([]);
   });
 });
@@ -106,7 +108,7 @@ describe("customer side switch (VITE_CUSTOMER_MODE)", () => {
     await boot("off"); await goto("#/"); await settle(100);
     const t = document.body.textContent;
     expect(t).toContain("Farm eggs"); expect(t).toContain("To order, contact us");
-    expect(screen.queryByRole("button", { name: /^Log in$/ })).toBeNull(); expect(screen.queryByRole("button", { name: /Basket/ })).toBeNull();
+    expect(screen.queryByRole("button", { name: /^Log in/ })).toBeNull(); expect(screen.queryByRole("button", { name: /Basket/ })).toBeNull();
     expect(document.querySelector(".qty")).toBeNull(); expect(document.querySelector(".heart")).toBeNull();
     expect(document.querySelector('a[href^="mailto:Eggesterfarm@gmail.com"]')).toBeTruthy(); expect(document.querySelector('a[href*="share.google"]')).toBeTruthy();
     expect(document.querySelector("img[src*=brand]")).toBeTruthy();
@@ -116,7 +118,7 @@ describe("customer side switch (VITE_CUSTOMER_MODE)", () => {
   it("live mode with VITE_CUSTOMER_MODE=on: login, basket and ordering appear", async () => {
     localStorage.setItem("kf_products", JSON.stringify(product));
     await boot("off", "on"); await goto("#/"); await settle(100);
-    expect(screen.getByRole("button", { name: /^Log in$/ })).toBeTruthy(); expect(screen.getByRole("button", { name: /Basket/ })).toBeTruthy(); expect(document.body.textContent).toContain("Sold out for now"); // no eggs in stock yet, but ordering is on
+    expect(screen.getByRole("button", { name: /^Log in/ })).toBeTruthy(); expect(screen.getByRole("button", { name: /Basket/ })).toBeTruthy(); expect(document.body.textContent).toContain("Sold out for now"); // no eggs in stock yet, but ordering is on
     expect(document.body.textContent).not.toContain("To order, contact us");
   });
   it("accepts true / 1 / yes too, and demo mode always has it on", async () => {

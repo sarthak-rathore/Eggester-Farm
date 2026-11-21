@@ -5,6 +5,7 @@ const cache = new Map(), subs = new Map();
 const parse = (k, i) => { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : i; } catch { return i; } };
 const get = (k, init) => { if (!cache.has(k)) cache.set(k, parse(k, init)); return cache.get(k); };
 const emit = (k) => subs.get(k)?.forEach((f) => f());
+export const peek = (k, init) => get(k, init); // read a saved value once, without subscribing
 export function setKey(k, v) { cache.set(k, v); try { localStorage.setItem(k, JSON.stringify(v)); } catch { /* storage full or blocked */ } emit(k); }
 export function removeKey(k) { cache.delete(k); try { localStorage.removeItem(k); } catch {} emit(k); }
 export function reloadAll() { cache.clear(); [...subs.keys()].forEach(emit); }

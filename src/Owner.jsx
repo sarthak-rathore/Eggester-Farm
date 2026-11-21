@@ -8,6 +8,8 @@ import { Alerts, nf } from "./kit.jsx";
 import { Tile, Loading } from "./ui.jsx";
 import { Ia } from "./adminIcons.jsx";
 import ErrorBoundary from "./ErrorBoundary.jsx";
+import { useBilingual, LangToggle, Title } from "./i18n.jsx";
+import PriorityActions from "./Priority.jsx";
 
 const named = (n) => lazy(() => import("./FarmSections.jsx").then((m) => ({ default: m[n] })));
 const S = { overview: named("FarmOverview"), production: named("Production"), sales: named("Sales"), expenses: named("Expenses"), stock: named("Stock"), feed: named("FeedMgmt"), mortality: named("Mortality"), health: named("Health"), purchases: named("Purchases"), staff: named("StaffLabor"), tasks: named("Tasks"), documents: named("Documents") };
@@ -31,6 +33,7 @@ const startRole = () => { // an owner login only counts if it carries a valid, u
 };
 
 export default function Owner(d) {
+  useBilingual(); // Hindi + English / सिर्फ हिंदी for the whole dashboard
   const h = useHash(); const [pin] = useLS("kf_pin", DEMO_OWNER.password); const [team] = useLS("kf_team", []);
   const [role, setRole] = useState(startRole); const [who, setWho] = useState(SS.getItem("kf_who") || "");
   const [mode, setMode] = useState("owner"); const [err, setErr] = useState(""); const [busy, setBusy] = useState(false);
@@ -61,7 +64,7 @@ export default function Owner(d) {
   if (!role) return (
     <div className="login">{DEMO || mode === "staff" ? (
       <form className="card form" onSubmit={login}>
-        <img className="lg-logo" src={FARM.logo} alt="" width="120" height="100" /><h2>{FARM.name}</h2><p className="muted">Please log in to open your farm.</p>
+        <img className="lg-logo" src={FARM.logo} alt="" width="120" height="100" /><h2>{FARM.name}</h2><LangToggle /><p className="muted">Please log in to open your farm.</p>
         <div className="seg"><button type="button" className={mode === "owner" ? "on" : ""} onClick={() => { setMode("owner"); setErr(""); }}>Owner</button><button type="button" className={mode === "staff" ? "on" : ""} onClick={() => { setMode("staff"); setErr(""); setF({ id: "", pw: "" }); }}>Manager or worker</button></div>
         {mode === "owner" ? <label>Email<input type="email" autoComplete="email" value={f.id} onChange={(e) => setF({ ...f, id: e.target.value })} /></label>
           : <label>Phone number<input type="tel" inputMode="numeric" autoFocus value={f.id} onChange={(e) => setF({ ...f, id: e.target.value })} /></label>}
@@ -71,7 +74,7 @@ export default function Owner(d) {
         <button className="btn big" disabled={busy}>{busy ? "Please wait…" : "Log in"}</button><a href="#/">Back to the shop</a></form>
     ) : (
       <form className="card form" onSubmit={otp.step === "id" ? ask : confirm}>
-        <img className="lg-logo" src={FARM.logo} alt="" width="120" height="100" /><h2>{FARM.name}</h2><p className="muted">Owner login</p>
+        <img className="lg-logo" src={FARM.logo} alt="" width="120" height="100" /><h2>{FARM.name}</h2><LangToggle /><p className="muted">Owner login</p>
         <div className="seg"><button type="button" className="on">Owner</button><button type="button" onClick={() => { setMode("staff"); setErr(""); setF({ id: "", pw: "" }); }}>Manager or worker</button></div>
         {otp.step === "id" ? <label>{CHANNEL === "sms" ? "Your mobile number" : "Your email"}<input required autoFocus type={CHANNEL === "sms" ? "tel" : "email"} inputMode={CHANNEL === "sms" ? "numeric" : "email"} autoComplete={CHANNEL === "sms" ? "tel" : "email"} value={f.id} onChange={(e) => setF({ ...f, id: e.target.value })} /></label>
           : <><p>We sent a 6-digit code to <b>{otp.to}</b>.</p><label>Enter the code<input required autoFocus inputMode="numeric" autoComplete="one-time-code" maxLength={6} pattern="[0-9]{6}" className="otpbox" value={otp.code} onChange={(e) => setOtp({ ...otp, code: e.target.value.replace(/\D/g, "") })} /></label></>}
@@ -91,10 +94,10 @@ export default function Owner(d) {
   return (
     <div className="admin shell">
       <aside className="side" aria-label="Main menu"><a className="logo" href="#/admin"><img className="brand-mark" src={FARM.logo} alt="" width="44" height="36" /> {FARM.name}</a>
-        {PRIMARY.filter(([k]) => A.p.includes(k)).map(([k, i, l, hi]) => <button key={k} className={"pn " + (prim === k ? "on" : "")} onClick={() => go(k)}><span className="pi"><Ia n={i} s={22} /></span><span className="pt"><b>{l}</b><em>{hi}</em></span>{k === "farms" && pending ? <i>{pending}</i> : null}</button>)}
-        <div className="sfoot"><small>{who}</small><a href="#/" className="btn sm ghost light">View shop</a><button className="btn sm ghost light" onClick={logout}>Log out</button></div></aside>
+        {PRIMARY.filter(([k]) => A.p.includes(k)).map(([k, i, l, hi]) => <button key={k} className={"pn " + (prim === k ? "on" : "")} onClick={() => go(k)}><span className="pi"><Ia n={i} s={22} /></span><span className="pt" data-no-i18n=""><Title en={l} hi={hi} /></span>{k === "farms" && pending ? <i>{pending}</i> : null}</button>)}
+        <div className="sfoot"><small>{who}</small><LangToggle className="light" /><a href="#/" className="btn sm ghost light">View shop</a><button className="btn sm ghost light" onClick={logout}>Log out</button></div></aside>
       <div className="main">
-        <header className="mtop"><a className="logo" href="#/admin"><img className="brand-mark" src={FARM.logo} alt="" width="44" height="36" /> {FARM.name}</a><button className="btn sm ghost light" onClick={logout}>Log out</button></header>
+        <header className="mtop"><a className="logo" href="#/admin"><img className="brand-mark" src={FARM.logo} alt="" width="44" height="36" /> {FARM.name}</a><LangToggle className="light" /><button className="btn sm ghost light" onClick={logout}>Log out</button></header>
         {page === "farm" && allowedPage && <FarmBar batchId={batchId} sec={sec} allowed={A.s} />}
         <main className="wrap"><ErrorBoundary resetKey={h}><div key={h} className="page">
           {!allowedPage ? <p className="muted">You do not have permission to open this page.</p>
@@ -102,7 +105,7 @@ export default function Owner(d) {
             : page === "farms" ? <FarmList d={d} />
             : page === "farm" ? <FarmPage d={d} batchId={batchId} sec={sec} allowed={A.s} />
             : page === "overview" ? <Lz><Overall d={d} /></Lz>
-            : page === "reports" ? <><div className="bar"><h2>Reports & Analytics <small className="hi">रिपोर्ट</small></h2></div><Lz><Reports d={d} /></Lz></>
+            : page === "reports" ? <><div className="bar"><h2>Reports & Analytics</h2></div><Lz><Reports d={d} /></Lz></>
             : page === "settings" ? <Lz><Settings d={d} sub={parts[1]} go={go} /></Lz> : <Home d={d} who={who} role={role} A={A} />}
         </div></ErrorBoundary></main>
       </div>
@@ -130,15 +133,16 @@ function Home({ d, who, role, A: perm }) {
   return (
     <>
       <div className="bar"><h2>{hello}, {who === "Owner" ? FARM.name : who}</h2></div>
+      <PriorityActions A={A} orders={d.orders} />
       <Alerts list={A.alerts} />
-      {role === "Owner" && (!F.farms.length || !F.batches.length || !d.products.length) && <section className="card setup"><h3>Let's set up your farm <small className="hi">शुरू करें</small></h3>
+      {role === "Owner" && (!F.farms.length || !F.batches.length || !d.products.length) && <section className="card setup"><h3>Let's set up your farm</h3>
         <p className="muted">Three small steps, then you can start entering your day.</p>
         <ol>
           <li className={F.farms.length ? "done" : ""}><span>Add your farm (name and place)</span><button className="btn sm" onClick={() => go("settings/farms")}>{F.farms.length ? <><Ia n="check" s={16} /> Done</> : "Add farm"}</button></li>
           <li className={F.batches.length ? "done" : ""}><span>Add your first batch of birds</span><button className="btn sm" onClick={() => go("settings/farms")} disabled={!F.farms.length}>{F.batches.length ? <><Ia n="check" s={16} /> Done</> : "Add batch"}</button></li>
           <li className={d.products.length ? "done" : ""}><span>Set your egg price (for sales)</span><button className="btn sm" onClick={() => go("settings/shop")}>{d.products.length ? <><Ia n="check" s={16} /> Done</> : "Add price"}</button></li>
         </ol></section>}
-      {perm.p.includes("farms") && <><h3 className="sh">My Farms <small className="hi">मेरे फार्म</small></h3>
+      {perm.p.includes("farms") && <><h3 className="sh">My Farms</h3>
         <div className="farmgrid">{active.map((b) => <BatchCard key={b.id} b={b} A={A} F={F} onOpen={() => go(`farm/${b.id}/${perm.s.includes("overview") ? "overview" : perm.s[0]}`)} />)}</div>
         {!active.length && role !== "Owner" && <p className="muted">No batch yet. Ask the owner to add one.</p>}</>}
       <div className="tiles">
@@ -146,7 +150,7 @@ function Home({ d, who, role, A: perm }) {
         {perm.p.includes("reports") && <Tile icon={<Ia n="chart" s={28} />} title="Reports & Analytics" hi="रिपोर्ट" sub="Day by day, month by month, print or download" onClick={() => go("reports")} />}
         {perm.p.includes("settings") && <Tile icon={<Ia n="settings" s={28} />} title="Settings" hi="सेटिंग" sub="Farms, staff, customers, backup and more" onClick={() => go("settings")} />}
       </div>
-      {perm.s.includes("today") && <section className="card guide"><h3>How to use every day</h3><ol><li>Tap your <b>farm / batch</b> above.</li><li>Tap <b>Today's Update</b> and fill in what happened today.</li><li>Press <b>Save</b>. That's all. Stock, money and reports update by themselves.</li></ol></section>}
+      {perm.s.includes("today") && <section className="card guide"><h3>How to use every day</h3><ol><li>Tap your farm / batch above.</li><li>Tap Today's Update and fill in what happened today.</li><li>Press Save. That's all. Stock, money and reports update by themselves.</li></ol></section>}
     </>
   );
 }
@@ -156,7 +160,7 @@ function FarmList({ d }) {
   const list = F.batches.filter((b) => all || b.status !== "Closed");
   return (
     <>
-      <div className="bar"><h2>My Farms <small className="hi">मेरे फार्म</small></h2><label className="radio"><input type="checkbox" checked={all} onChange={(e) => setAll(e.target.checked)} />Show finished batches too</label></div>
+      <div className="bar"><h2>My Farms</h2><label className="radio"><input type="checkbox" checked={all} onChange={(e) => setAll(e.target.checked)} />Show finished batches too</label></div>
       <p className="muted">Tap a batch to open it.</p>
       <div className="farmgrid">{list.map((b) => <BatchCard key={b.id} b={b} A={A} F={F} onOpen={() => go(`farm/${b.id}/overview`)} />)}</div>
       {!list.length && <p className="muted">No batch yet. Add one in Settings > Farms & Batches.</p>}

@@ -1,11 +1,14 @@
 import React, { useState, useMemo } from "react";
 import { BarChart, Bar, ComposedChart, Line, Area, AreaChart, PieChart, Pie, Cell, XAxis, YAxis, Tooltip, Legend, CartesianGrid } from "recharts";
-import { useFarmData, useAnalysis, aggregate, ledger, upsert, TRAY, EXP_CATS, FEED_CAT, CHICK_CAT, MED_CAT, LABOR_CAT, PACK_CAT, rawStock, rawAvgPrice } from "./farm.js";
+import { useFarmData, useAnalysis, aggregate, ledger, upsert, TRAY, PER_BOX, EMPTY_PER_BOX, EGGS_PER_BOX, packEggs, EXP_CATS, FEED_CAT, CHICK_CAT, MED_CAT, LABOR_CAT, PACK_CAT, rawStock, rawAvgPrice } from "./farm.js";
 import { inr, today, uid } from "./store.js";
-import { COL, PIE, ChartCard, Kpi, Alerts, nf, RangeFilter, rangeOf, inRange } from "./charts.jsx";
+import { COL, PIE, ChartCard, Kpi, Alerts, nf, Pack, RangeFilter, rangeOf, inRange } from "./charts.jsx";
+import { Bi, pick } from "./i18n.jsx";
+import PriorityActions from "./Priority.jsx";
+import { lossReason, byCategory, rawKgOf } from "./insights.js";
 import { Msg, Num, Qty, Empty } from "./ui.jsx";
 import { Ia } from "./adminIcons.jsx";
-import { WUNITS, toBase, kgText, qtyText } from "./units.js";
+import { WUNITS, LUNITS, PUNITS, toBase, kgText, qtyText } from "./units.js";
 import { n, addExpense, addPurchase, makeFeed } from "./actions.js";
 import Crud from "./Crud.jsx";
 
@@ -22,11 +25,11 @@ const Tbl = ({ heads, rows, empty = "Nothing here yet." }) => (
 function useCtx(batchId, d) {
   const F = useFarmData(); const A = useAnalysis(d.orders, d.txns, batchId);
   const batch = F.batches.find((b) => b.id === batchId); const fn = Object.fromEntries(F.farms.map((f) => [f.id, f.name]));
-  return { F, A, batch, fn, t: A.tot, perBox: +F.boxCfg.perBox || 9 };
+  return { F, A, batch, fn, t: A.tot, perBox: PER_BOX };
 }
 const monthRows = (rows) => rows.filter((r) => r.date >= today().slice(0, 8) + "01");
 function usePeriod() { const [rv, setRv] = useState({ preset: "month" }); return { rv, setRv, r: rangeOf(rv) }; }
-const Period = ({ p, count }) => <div className="periodbar"><RangeFilter v={p.rv} set={p.setRv} /><small className="muted">Showing {count} {count === 1 ? "entry" : "entries"} for the chosen time. Pick “All time” to see everything.</small></div>;
+const Period = ({ p, count }) => <div className="periodbar"><RangeFilter v={p.rv} set={p.setRv} /><small className="muted">{`Showing ${count} ${count === 1 ? "entry" : "entries"} for the chosen time. Pick “All time” to see everything.`}</small></div>;
 const Del = ({ onDo }) => <button className="link" onClick={() => confirm("Delete this entry? Stock and money will adjust automatically.") && onDo()}>Delete</button>;
 
 /* ================= Overview ================= */
@@ -34,19 +37,20 @@ export function FarmOverview({ batchId, d }) {
   const { F, A, batch, t } = useCtx(batchId, d);
   if (!batch) return null;
   const m = monthRows(A.rows), rev = sum(m, (r) => r.revenue), ex = sum(m, (r) => r.expense), profit = rev - ex;
-  const done = F.logs.some((l) => l.batchId === batchId && l.date === today());
   const day = aggregate(A.rows, "day"), st = A.perBatch.find((x) => x.b.id === batchId) || {};
+  const monthStart = today().slice(0, 8) + "01";
+  const why = profit < 0 ? lossReason({ revenue: rev, expense: ex, byCat: byCategory(ledger({ orders: [], batches: F.batches, feed: F.feed, rawBuy: F.rawBuy, boxes: F.boxes, trays: F.trays, txns: [], farms: F.farms, exp: F.exp }).filter((x) => x.batchId === batchId && x.date >= monthStart)), feedKg: t.feedLeft, rawKg: rawKgOf(F, batch.farmId) }) : null;
   return (
     <>
-      <div className={"todaybox " + (done ? "done" : "todo")}><div><b><span className="ih">{done && <Ia n="check" s={18} />}{done ? "Today's update is saved" : "Today's update is not done yet"}</span></b><br /><span>{done ? "You can add sales or expenses anytime." : "Enter today's eggs, feed, birds, sales and expenses."}</span></div><button className="btn" onClick={() => go(`farm/${batchId}/today`)}>{done ? "Add more" : "Enter today's update"}</button></div>
+      <PriorityActions A={A} orders={d.orders} batchId={batchId} />
       <Alerts list={A.alerts} />
       <h3 className="sh">{batch.name} at a glance</h3>
       <div className="kpis">
-        <Kpi l="Eggs today" v={nf(A.rows[A.rows.length - 1]?.eggs)} /><Kpi l="Eggs ready to sell" v={nf(t.stockTrays) + " trays"} t={t.stockTrays < 20 ? "bad" : "good"} />
+        <Kpi l="Eggs today" v={nf(A.rows[A.rows.length - 1]?.eggs)} /><Kpi l="Eggs ready to sell" v={nf(t.stockTrays) + " trays"} t={t.stockTrays < 20 ? "bad" : "good"} hint={<Pack eggs={t.stockEggs} />} />
         <Kpi l="Birds alive" v={nf(t.alive)} t="good" hint={`${st.weeks ?? 0} weeks old${st.laying ? "" : ", still growing"}`} /><Kpi l="Birds died (total)" v={nf(t.died)} t={t.mortPct > 8 ? "bad" : ""} hint={`${nf(t.mortPct, 1)}% of birds bought`} />
       </div>
       <div className="kpis">
-        <Kpi l="Money earned this month" v={inr(rev)} t="good" /><Kpi l="Money spent this month" v={inr(ex)} /><Kpi l={profit >= 0 ? "Profit this month" : "Loss this month"} v={inr(Math.abs(profit))} t={profit >= 0 ? "good" : "bad"} />
+        <Kpi l="Money earned this month" v={inr(rev)} t="good" /><Kpi l="Money spent this month" v={inr(ex)} /><Kpi l={profit >= 0 ? "Profit this month" : "Loss this month"} v={inr(Math.abs(profit))} t={profit >= 0 ? "good" : "bad"} hint={why && <Bi en={why.en} hi={why.hi} />} />
         <Kpi l="Money to receive" v={inr(t.owed)} t={t.owed ? "bad" : ""} hint="sales not yet paid" /><Kpi l="Feed left" v={nf(t.feedLeft) + " kg"} hint={t.daysLeft === null ? "" : `about ${nf(t.daysLeft, 0)} days`} />
       </div>
       <ChartCard title="Eggs, last 30 days" hint="Good eggs and broken eggs each day"><ComposedChart data={day}>{G}{X}{Y}<Tooltip /><Legend /><Bar dataKey="good" name="Good eggs" stackId="e" fill={COL.green} /><Bar dataKey="broken" name="Broken" stackId="e" fill={COL.red} radius={[4, 4, 0, 0]} /></ComposedChart></ChartCard>
@@ -62,6 +66,7 @@ export function Production({ batchId, d }) {
   return (
     <>
       <div className="kpis"><Kpi l="Eggs so far" v={nf(t.eggs)} /><Kpi l="Good trays so far" v={nf(t.producedTrays)} /><Kpi l="Laying rate (7 days)" v={t.hdp7 === null ? "not laying yet" : nf(t.hdp7, 1) + "%"} hint="of hens that laid an egg each day" t={t.hdp7 !== null && t.hdp7 < 70 ? "bad" : "good"} /><Kpi l="Eggs broken" v={nf(t.eggs ? (t.broken / t.eggs) * 100 : 0, 1) + "%"} hint={`worth about ${inr(t.brokenValue)}`} /></div>
+      {t.hdp7 !== null && t.hdp7 < 70 && <section className="card advicebox"><h3><Bi en="Laying is low. Try this:" hi="अंडे कम आ रहे हैं। यह करके देखें:" /></h3><ul className="advice">{t.layAdvice.map((x, i) => <li key={i}>{pick(x)}</li>)}</ul></section>}
       <ChartCard title="Eggs per day" hint="Last 30 days"><ComposedChart data={day}>{G}{X}{Y}<Tooltip /><Legend /><Bar dataKey="good" name="Good eggs" stackId="e" fill={COL.green} /><Bar dataKey="broken" name="Broken" stackId="e" fill={COL.red} radius={[4, 4, 0, 0]} /></ComposedChart></ChartCard>
       <p className="muted">To add a new day use <button className="link" onClick={() => go(`farm/${batchId}/today`)}>Today's Update</button>. Use this list to correct a day.</p>
       <Period p={P} count={rows.length} />
@@ -75,7 +80,7 @@ export function Production({ batchId, d }) {
 
 /* ================= Sales ================= */
 export function Sales({ batchId, d }) {
-  const { F, A, batch, t } = useCtx(batchId, d); const [sub, setSub] = useState("sales"); const day = aggregate(A.rows, "day");
+  const { F, A, batch, t } = useCtx(batchId, d); const [sub, setSub] = useState(["sales", "owed", "online"].includes(location.hash.split("/")[5]) ? location.hash.split("/")[5] : "sales"); const day = aggregate(A.rows, "day");
   const P = usePeriod(); const mine = newest(d.orders.filter((o) => o.batchId === batchId && inRange(o.date, P.r))), online = newest(d.orders.filter((o) => !o.batchId && inRange(o.date, P.r)));
   const owing = d.orders.filter((o) => o.status === "Delivered" && o.payStatus === "Unpaid" && (!o.batchId || o.batchId === batchId));
   const m = monthRows(A.rows);
@@ -107,11 +112,11 @@ function AddExpense({ F, batch, onDone }) {
   const feedOpts = [...F.types.map((t) => ({ v: "feed:" + t.id, l: "Ready feed: " + t.name })), ...F.raw.map((r) => ({ v: "raw:" + r.id, l: r.name }))];
   const trayOpts = [["trays", "Empty trays"], ["boxes", "Empty boxes"], ["other", "Other packaging (tape, bags…)"]];
   const kind = sub.split(":")[0], rawItem = F.raw.find((r) => r.id === sub.split(":")[1]);
-  const units = kind === "raw" && rawItem?.unit === "ltr" ? ["Litre"] : WUNITS;
+  const units = kind === "raw" && rawItem?.unit === "ltr" ? LUNITS : WUNITS;
   const save = (e) => {
     e.preventDefault(); let err = "";
     if (c === FEED_CAT) { const s = sub || feedOpts[0]?.v || ""; const [k, id] = s.split(":"); err = k === "feed" ? addPurchase(F, batch, "feed", { date, feedType: id, kg: toBase(q.q, q.u), cost: amt, supplier: note }) : addPurchase(F, batch, "raw", { date, itemId: id, qty: toBase(q.q, units.includes(q.u) ? q.u : units[0]), cost: amt, supplier: note }); }
-    else if (c === PACK_CAT && (sub === "trays" || sub === "boxes" || !sub)) err = addPurchase(F, batch, sub || "trays", { date, qty: q.q, cost: amt, supplier: note });
+    else if (c === PACK_CAT && (sub === "trays" || sub === "boxes" || !sub)) err = addPurchase(F, batch, sub || "trays", { date, qty: toBase(q.q, PUNITS.includes(q.u) ? q.u : "Piece"), cost: amt, supplier: note });
     else if (c === MED_CAT) err = addPurchase(F, batch, "medicine", { date, cost: amt, sub: sub || "Medicine", note, due });
     else if (n(amt) <= 0) err = "Enter the amount.";
     else addExpense(F, batch, { date, category: c, amount: amt, note, sub: c === PACK_CAT ? "Other packaging" : "", staffId });
@@ -123,7 +128,7 @@ function AddExpense({ F, batch, onDone }) {
       <label>What for<select value={c} onChange={(e) => { setC(e.target.value); setSub(""); }}>{EXP_CATS.filter((x) => x !== CHICK_CAT).map((x) => <option key={x}>{x}</option>)}</select></label>
       <label>Date<input type="date" value={date} max={today()} onChange={(e) => setDate(e.target.value || today())} /></label>
       {c === FEED_CAT && <><label>What did you buy?<select value={sub || feedOpts[0]?.v} onChange={(e) => setSub(e.target.value)}>{feedOpts.map((o) => <option key={o.v} value={o.v}>{o.l}</option>)}</select></label><Qty label="How much" v={q} set={setQ} units={units} /></>}
-      {c === PACK_CAT && <><label>What did you buy?<select value={sub || "trays"} onChange={(e) => setSub(e.target.value)}>{trayOpts.map(([v, l]) => <option key={v} value={v}>{l}</option>)}</select></label>{(sub || "trays") !== "other" && <Num label="How many" v={q.q} set={(v) => setQ({ ...q, q: v })} />}</>}
+      {c === PACK_CAT && <><label>What did you buy?<select value={sub || "trays"} onChange={(e) => setSub(e.target.value)}>{trayOpts.map(([v, l]) => <option key={v} value={v}>{l}</option>)}</select></label>{(sub || "trays") !== "other" && <Qty label="How many" v={{ q: q.q, u: PUNITS.includes(q.u) ? q.u : "Piece" }} units={PUNITS} set={setQ} />}</>}
       {c === MED_CAT && <><label>Kind<select value={sub || "Medicine"} onChange={(e) => setSub(e.target.value)}><option>Medicine</option><option>Vaccine</option></select></label><label>Next due date (optional)<input type="date" value={due} onChange={(e) => setDue(e.target.value)} /></label></>}
       {c === LABOR_CAT && <label>Whose salary<select value={staffId} onChange={(e) => { setStaffId(e.target.value); const s = F.staff.find((x) => x.id === e.target.value); if (s && !amt) setAmt(String(s.salary || "")); }}><option value="">Not listed</option>{F.staff.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}</select></label>}
       <Num label="Total amount (₹)" v={amt} set={setAmt} />
@@ -170,13 +175,15 @@ export function Stock({ batchId, d }) {
       <p className="muted">Everything here updates by itself from Today's Update. Eggs, trays and boxes are shared by all your farms because they are sold from one place. Feed and raw materials are for this batch's farm.</p>
       <Alerts list={A.alerts.filter((a) => /trays|boxes|Feed/.test(a.text))} />
       <section className="card"><h3 className="ih"><Ia n="egg" s={20} /> Eggs</h3><div className="kpis">
-        <Kpi l="Produced (good)" v={nf(t.producedTrays, 1) + " trays"} hint={`${nf(t.eggs - t.broken)} eggs`} /><Kpi l="Sold" v={nf(t.soldTrays, 1) + " trays"} /><Kpi l="Broken" v={nf(t.broken) + " eggs"} t="bad" /><Kpi l="Available now" v={nf(t.stockTrays) + " trays"} t={t.stockTrays < 20 ? "bad" : "good"} hint={`${nf(t.stockEggs)} eggs`} /></div></section>
+        <Kpi l="Produced (good)" v={nf(t.producedTrays, 1) + " trays"} hint={`${nf(t.eggs - t.broken)} eggs`} /><Kpi l="Sold" v={nf(t.soldTrays, 1) + " trays"} /><Kpi l="Broken" v={nf(t.broken) + " eggs"} t="bad" /><Kpi l="Available now" v={nf(t.stockTrays) + " trays"} t={t.stockTrays < 20 ? "bad" : "good"} hint={`${nf(t.stockEggs)} eggs`} /></div>
+        <div className="packbox"><p><b><Bi en="Packed automatically" hi="अपने आप पैक हिसाब" />:</b> <Bi en={`${nf(t.stockEggs)} eggs = ${nf(t.stockBoxes)} ${t.stockBoxes === 1 ? "box" : "boxes"} + ${t.stockLooseTrays} loose ${t.stockLooseTrays === 1 ? "tray" : "trays"} + ${t.stockLooseEggs} ${t.stockLooseEggs === 1 ? "egg" : "eggs"} left.`} hi={`${nf(t.stockEggs)} अंडे = ${nf(t.stockBoxes)} ${t.stockBoxes === 1 ? "डिब्बा" : "डिब्बे"} + ${t.stockLooseTrays} खुली ट्रे + ${t.stockLooseEggs} अंडे बाकी।`} /></p>
+          <p className="muted"><Bi en={`Rule: 1 tray = ${TRAY} eggs. 1 box = ${PER_BOX + EMPTY_PER_BOX} trays = ${PER_BOX} trays filled with eggs (${EGGS_PER_BOX} eggs) + ${EMPTY_PER_BOX} empty trays for protection. The ${t.stockLooseEggs} leftover eggs stay in stock and join the next eggs you collect, so new trays and boxes form by themselves.`} hi={`नियम: 1 ट्रे = ${TRAY} अंडे। 1 डिब्बा = ${PER_BOX + EMPTY_PER_BOX} ट्रे = ${PER_BOX} ट्रे अंडों से भरी (${EGGS_PER_BOX} अंडे) + ${EMPTY_PER_BOX} खाली ट्रे सुरक्षा के लिए। बचे ${t.stockLooseEggs} अंडे स्टॉक में रहते हैं और अगले अंडों से जुड़कर अपने आप नई ट्रे और डिब्बा बना देते हैं।`} /></p></div></section>
       <section className="card"><h3 className="ih"><Ia n="hen" s={20} /> Birds</h3><div className="kpis">
         <Kpi l="Active" v={nf(t.alive)} t="good" /><Kpi l="Purchased" v={nf(t.purchased)} /><Kpi l="Dead" v={nf(t.died)} t={t.mortPct > 8 ? "bad" : ""} hint={`${nf(t.mortPct, 1)}%`} /><Kpi l="Sold or removed" v={nf(t.culled)} /></div></section>
       <section className="card"><h3 className="ih"><Ia n="wheat" s={20} /> Feed</h3><Tbl heads={["Feed", "Made by you", "Bought", "Eaten by birds", "Available"]} rows={A.feedTable.map((x) => [x.name, kgText(x.made), kgText(x.purchased), kgText(x.used), <b>{kgText(x.left)}</b>])} /></section>
       <section className="card"><h3 className="ih"><Ia n="stock" s={20} /> Raw materials</h3><Tbl heads={["Material", "Available"]} rows={F.raw.map((r) => [r.name, <b>{qtyText(rs[r.id] || 0, r.unit)}</b>])} /></section>
       <section className="card"><h3 className="ih"><Ia n="box" s={20} /> Trays and boxes</h3>
-        <Tbl heads={["", "Empty (ready to use)", "Filled", "Damaged"]} rows={[["Trays (30 eggs each)", <b>{nf(t.trayEmpty)}</b>, `${nf(t.stockTrays)} trays of eggs ready`, nf(t.trayLost)], [`Boxes (${perBox} trays = ${perBox * TRAY} eggs)`, <b>{nf(t.boxStock)}</b>, `${nf(t.boxUsed)} sent out with sales`, nf(t.boxLost)]]} /></section>
+        <Tbl heads={["", "Empty (ready to use)", "Filled", "Damaged"]} rows={[["Trays (30 eggs each)", <b>{nf(t.trayEmpty)}</b>, `${nf(t.stockTrays)} trays of eggs ready`, nf(t.trayLost)], [`Boxes (${perBox} filled trays + ${EMPTY_PER_BOX} empty = ${EGGS_PER_BOX} eggs)`, <b>{nf(t.boxStock)}</b>, `${nf(t.boxUsed)} sent out with sales (${nf(t.boxUsed * EMPTY_PER_BOX)} protection trays used)`, nf(t.boxLost)]]} /></section>
       <form className="card form grid2" onSubmit={adjust}><h3 className="wide">Eggs, trays or boxes lost, damaged or found</h3>
         <label>What<select value={adj.what} onChange={(e) => setAdj({ ...adj, what: e.target.value })}><option value="eggs">Eggs</option><option value="trays">Empty trays</option><option value="boxes">Empty boxes</option></select></label>
         <label>Happened<select value={adj.dir} onChange={(e) => setAdj({ ...adj, dir: e.target.value })}><option value="lost">Lost or damaged</option><option value="found">Found extra</option></select></label>
@@ -189,7 +196,7 @@ export function Stock({ batchId, d }) {
 /* ================= Feed Management ================= */
 function BuyForm({ F, batch, kind, label }) {
   const [p, setP] = useState({ date: today(), feedType: F.types[0]?.id || "", itemId: F.raw[0]?.id || "", q: { q: "", u: "Kg" }, cost: "", supplier: "" }); const [msg, setMsg] = useState("");
-  const item = F.raw.find((r) => r.id === p.itemId), units = kind === "raw" && item?.unit === "ltr" ? ["Litre"] : WUNITS;
+  const item = F.raw.find((r) => r.id === p.itemId), units = kind === "raw" && item?.unit === "ltr" ? LUNITS : WUNITS;
   const save = (e) => { e.preventDefault(); const u = units.includes(p.q.u) ? p.q.u : units[0]; const err = addPurchase(F, batch, kind, { date: p.date, feedType: p.feedType, itemId: p.itemId, kg: toBase(p.q.q, u), qty: toBase(p.q.q, u), cost: p.cost, supplier: p.supplier }); if (err) return setMsg("e|" + err); setP({ ...p, q: { q: "", u: "Kg" }, cost: "", supplier: "" }); setMsg("s|Saved. Stock and expenses are updated."); };
   return (
     <form className="card form grid2" onSubmit={save}><h3 className="wide">{label}</h3>
@@ -318,10 +325,10 @@ export function Health({ batchId, d }) {
 export function Purchases({ batchId, d }) {
   const { F, A, batch } = useCtx(batchId, d); const [sub, setSub] = useState("list"); const [msg, setMsg] = useState("");
   const P = usePeriod(); const [c, setC] = useState({ date: today(), name: "", count: "", chickCost: "", supplier: "", ageDays: 1 });
-  const [q, setQ] = useState({ date: today(), qty: "", cost: "", supplier: "" });
+  const [q, setQ] = useState({ date: today(), qty: "", u: "Piece", cost: "", supplier: "" });
   const rows = ledger({ orders: [], batches: F.batches, feed: F.feed, rawBuy: F.rawBuy, boxes: F.boxes, trays: F.trays, txns: [], farms: F.farms, exp: [] }).filter((x) => x.batchId === batchId && inRange(x.date, P.r));
   const newBatch = (e) => { e.preventDefault(); if (n(c.count) <= 0) return setMsg("e|Enter how many chicks."); F.setBatches((b) => [{ id: uid(), farmId: batch.farmId, name: c.name || "New batch", breed: "", date: c.date, count: n(c.count), chickCost: n(c.chickCost), ageDays: n(c.ageDays), supplier: c.supplier, status: "Active", note: "" }, ...b]); setC({ ...c, name: "", count: "", chickCost: "" }); setMsg("s|New batch added on this farm. Find it in My Farms."); };
-  const qf = (kind) => (e) => { e.preventDefault(); const err = addPurchase(F, batch, kind, q); if (err) return setMsg("e|" + err); setQ({ ...q, qty: "", cost: "", supplier: "" }); setMsg("s|Saved. Stock and expenses are updated."); };
+  const qf = (kind) => (e) => { e.preventDefault(); const err = addPurchase(F, batch, kind, { ...q, qty: toBase(q.qty, q.u) }); if (err) return setMsg("e|" + err); setQ({ ...q, qty: "", cost: "", supplier: "" }); setMsg("s|Saved. Stock and expenses are updated."); };
   const del = (x) => ({ f: () => F.setFeed((a) => a.filter((r) => r.id !== x.srcId)), w: () => F.setRawBuy((a) => a.filter((r) => r.id !== x.srcId)), t: () => F.setTrays((a) => a.filter((r) => r.id !== x.srcId)), x: () => F.setBoxes((a) => a.filter((r) => r.id !== x.srcId)) }[x.id[0]]);
   return (
     <>
@@ -331,8 +338,8 @@ export function Purchases({ batchId, d }) {
       {sub === "list" && <section className="card"><h3>All purchases for this batch</h3><div className="scroll"><table><thead><tr><th>Date</th><th>What</th><th>Details</th><th>Cost</th><th /></tr></thead><tbody>{rows.map((x) => <tr key={x.id}><td>{x.date}</td><td>{x.id[0] === "b" ? "Chicks" : x.id[0] === "f" ? "Ready feed" : x.id[0] === "w" ? "Raw material" : x.id[0] === "t" ? "Trays" : "Boxes"}</td><td>{x.note}</td><td>{inr(x.amount)}</td><td>{del(x) ? <Del onDo={del(x)} /> : <small className="muted">see Settings</small>}</td></tr>)}</tbody></table>{!rows.length && <p className="muted">No purchases yet.</p>}</div></section>}
       {sub === "feed" && <BuyForm F={F} batch={batch} kind="feed" label="Buy ready-made feed" />}
       {sub === "raw" && <BuyForm F={F} batch={batch} kind="raw" label="Buy raw material" />}
-      {sub === "trays" && <form className="card form grid2" onSubmit={qf("trays")}><h3 className="wide">Buy empty trays</h3><label>Date<input type="date" value={q.date} max={today()} onChange={(e) => setQ({ ...q, date: e.target.value || today() })} /></label><Num label="How many trays" v={q.qty} set={(v) => setQ({ ...q, qty: v })} /><Num label="Total cost (₹)" v={q.cost} set={(v) => setQ({ ...q, cost: v })} /><label>Bought from<input list="suppliers" value={q.supplier} onChange={(e) => setQ({ ...q, supplier: e.target.value })} /></label><div className="row wide"><button className="btn sm">Save</button></div></form>}
-      {sub === "boxes" && <form className="card form grid2" onSubmit={qf("boxes")}><h3 className="wide">Buy empty boxes</h3><label>Date<input type="date" value={q.date} max={today()} onChange={(e) => setQ({ ...q, date: e.target.value || today() })} /></label><Num label="How many boxes" v={q.qty} set={(v) => setQ({ ...q, qty: v })} /><Num label="Total cost (₹)" v={q.cost} set={(v) => setQ({ ...q, cost: v })} /><label>Bought from<input list="suppliers" value={q.supplier} onChange={(e) => setQ({ ...q, supplier: e.target.value })} /></label><div className="row wide"><button className="btn sm">Save</button></div></form>}
+      {sub === "trays" && <form className="card form grid2" onSubmit={qf("trays")}><h3 className="wide">Buy empty trays</h3><label>Date<input type="date" value={q.date} max={today()} onChange={(e) => setQ({ ...q, date: e.target.value || today() })} /></label><Qty label="How many trays" v={{ q: q.qty, u: q.u }} units={PUNITS} set={(v) => setQ({ ...q, qty: v.q, u: v.u })} /><Num label="Total cost (₹)" v={q.cost} set={(v) => setQ({ ...q, cost: v })} /><label>Bought from<input list="suppliers" value={q.supplier} onChange={(e) => setQ({ ...q, supplier: e.target.value })} /></label><div className="row wide"><button className="btn sm">Save</button></div></form>}
+      {sub === "boxes" && <form className="card form grid2" onSubmit={qf("boxes")}><h3 className="wide">Buy empty boxes</h3><label>Date<input type="date" value={q.date} max={today()} onChange={(e) => setQ({ ...q, date: e.target.value || today() })} /></label><Qty label="How many boxes" v={{ q: q.qty, u: q.u }} units={PUNITS} set={(v) => setQ({ ...q, qty: v.q, u: v.u })} /><Num label="Total cost (₹)" v={q.cost} set={(v) => setQ({ ...q, cost: v })} /><label>Bought from<input list="suppliers" value={q.supplier} onChange={(e) => setQ({ ...q, supplier: e.target.value })} /></label><div className="row wide"><button className="btn sm">Save</button></div></form>}
       {sub === "chicks" && <form className="card form grid2" onSubmit={newBatch}><h3 className="wide">Buy new chicks (starts a new batch on this farm)</h3>
         <label>Batch name (e.g. Batch E)<input required value={c.name} onChange={(e) => setC({ ...c, name: e.target.value })} /></label><label>Date<input type="date" value={c.date} max={today()} onChange={(e) => setC({ ...c, date: e.target.value || today() })} /></label>
         <Num label="How many chicks" v={c.count} set={(v) => setC({ ...c, count: v })} /><Num label="Cost per chick (₹)" v={c.chickCost} set={(v) => setC({ ...c, chickCost: v })} /><Num label="Age of chicks in days" v={c.ageDays} set={(v) => setC({ ...c, ageDays: v })} />

@@ -73,7 +73,7 @@ export function Hero({ ready, delivery, freeAbove }) {
         <h1 className="rise" style={{ "--d": ".08s" }}>{FARM.headline}</h1>
         <p className="lead rise" style={{ "--d": ".18s" }}>{FARM.tagline}. Collected by hand every morning, packed in trays of 30 and supplied in bulk.</p>
         <div className="row rise" style={{ "--d": ".28s" }}><a className="btn big" href="#products" onClick={goTo("products")}>{CUSTOMERS ? "Order eggs in bulk" : "See our eggs and prices"} <Icon n="arrow" s={20} /></a><a className="btn ghost light big" href="#about" onClick={goTo("about")}>See the farm</a></div>
-        <ul className="hero-facts rise" style={{ "--d": ".4s" }}><li><Icon n="sun" /> Fresh every morning</li><li><Icon n="box" /> Trays of 30, boxes of 9 trays</li>{CUSTOMERS ? <li><Icon n="truck" /> Delivery {inr(delivery)}, free above {inr(freeAbove)}</li> : <li><Icon n="phone" /> Call or WhatsApp to order</li>}</ul>
+        <ul className="hero-facts rise" style={{ "--d": ".4s" }}><li><Icon n="sun" /> Fresh every morning</li><li><Icon n="box" /> Trays of 30, boxes of 7 trays</li>{CUSTOMERS ? <li><Icon n="truck" /> Delivery {inr(delivery)}, free above {inr(freeAbove)}</li> : <li><Icon n="phone" /> Call or WhatsApp to order</li>}</ul>
       </div>
       <a className="scroll-cue" href="#products" onClick={goTo("products")} aria-label="Scroll to the shop"><span /></a>
       <div className="dots" aria-hidden="true">{slides.map((s, k) => <i key={s} className={k === i ? "on" : ""} />)}</div>
@@ -90,7 +90,7 @@ export const Heading = ({ eyebrow, title, text }) => <div className="sec-head rv
 
 export function Why({ moq, tray }) {
   const f = [["leaf", "Fresh from the shed", "Eggs are collected by hand every morning, so what reaches you is only days old, never weeks."], ["tag", "Pay less as you buy more", "Every product shows its bulk prices. The more trays you order, the lower the price per tray."],
-    ["box", "Packed with care", `Trays of ${tray} eggs, boxes of 9 trays. Clean, counted and ready for your shop, hotel or bakery.`], ["truck", "Reliable supply", "Tell us what you need and we supply it on time. Large orders can be scheduled ahead for your busy days."]];
+    ["box", "Packed with care", `Trays of ${tray} eggs, boxes of 7 filled trays with 2 empty trays for protection. Clean, counted and ready for your shop, hotel or bakery.`], ["truck", "Reliable supply", "Tell us what you need and we supply it on time. Large orders can be scheduled ahead for your busy days."]];
   return (
     <section id="why" className="band alt"><Heading eyebrow="Why choose us" title="Simple, honest, fresh" text={moq ? `Orders start from just ${moq} trays.` : ""} />
       <div className="feat">{f.map(([ic, t, d], k) => <article key={t} className="rv" style={{ "--i": k }}><span className="feat-ico"><Icon n={ic} s={28} /></span><h3>{t}</h3><p>{d}</p></article>)}</div></section>
@@ -98,7 +98,7 @@ export function Why({ moq, tray }) {
 }
 
 export function How() {
-  const s = [["egg", "Hens lay", "Healthy hens, fed well and looked after every day."], ["hand", "Collected by hand", "Every morning, gently and carefully."], ["box", "Packed in trays", "30 eggs a tray, 9 trays a box."], ["truck", "At your door", "Delivered fresh to your shop or kitchen."]];
+  const s = [["egg", "Hens lay", "Healthy hens, fed well and looked after every day."], ["hand", "Collected by hand", "Every morning, gently and carefully."], ["box", "Packed in trays", "30 eggs a tray, 7 filled trays (+2 empty) in a box."], ["truck", "At your door", "Delivered fresh to your shop or kitchen."]];
   return (
     <section id="how" className="band"><Heading eyebrow="From our shed to your shop" title="How your eggs reach you" />
       <ol className="steps">{s.map(([ic, t, d], k) => <li key={t} className="rv" style={{ "--i": k }}><span className="step-ico"><Icon n={ic} s={26} /><b>{k + 1}</b></span><h3>{t}</h3><p>{d}</p></li>)}</ol></section>

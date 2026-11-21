@@ -1,11 +1,31 @@
 import { useMemo } from "react";
 import { useLS, uid, setKey, localYmd } from "./store.js";
+import { b } from "./i18n.jsx";
 import { SEED_PRODUCTS, DEMO } from "./config.js";
 
 export const TRAY = 30;
 export const EXP_CATS = ["Feed / Raw Materials", "Chicks / Birds Purchase", "Medicines & Vaccines", "Electricity & Water", "Labor Salary", "Transport", "Trays, Boxes & Packaging", "Repairs & Maintenance", "Miscellaneous"];
 export const [FEED_CAT, CHICK_CAT, MED_CAT, , LABOR_CAT, , PACK_CAT] = EXP_CATS;
-export const PER_BOX = 9; // 1 tray = 30 eggs, 1 box = 9 trays = 270 eggs
+/* PACKING RULE used everywhere: 1 tray = 30 eggs. 1 box = 9 trays = 7 trays filled with eggs (210 eggs) + 2 empty trays for protection. */
+export const FILLED_PER_BOX = 7, EMPTY_PER_BOX = 2, TRAYS_PER_BOX = FILLED_PER_BOX + EMPTY_PER_BOX; // 7 + 2 = 9
+export const PER_BOX = FILLED_PER_BOX; // filled trays in one box
+export const EGGS_PER_BOX = TRAY * FILLED_PER_BOX; // 210
+/* Turns any number of eggs into boxes, trays and leftover eggs. Leftover eggs stay in the stock total, so they add up across days and
+   turn into a new tray (30 eggs) and a new box (7 trays) by themselves as soon as there are enough. Example: 212 eggs = 7 trays = 1 box + 2 eggs left. */
+export function packEggs(eggs) {
+  const e = Math.max(0, Math.floor(+eggs || 0)), trays = Math.floor(e / TRAY), boxes = Math.floor(trays / FILLED_PER_BOX);
+  return { eggs: e, trays, boxes, looseTrays: trays - boxes * FILLED_PER_BOX, looseEggs: e - trays * TRAY, emptyInBoxes: boxes * EMPTY_PER_BOX, boxesToPack: Math.ceil(trays / FILLED_PER_BOX) };
+}
+/* what one order uses up in packing: every 7 filled trays go in one box with 2 empty protection trays */
+export function orderPack(eggs) { const trays = Math.ceil((+eggs || 0) / TRAY), boxes = Math.ceil(trays / FILLED_PER_BOX); return { trays, boxes, protect: boxes * EMPTY_PER_BOX, traysUsed: trays + boxes * EMPTY_PER_BOX }; }
+const s_ = (n, one, many) => (n === 1 ? one : many);
+export function packText(p) { // { en, hi } such as "1 box (7 trays + 2 empty trays) + 0 loose trays + 2 eggs left"
+  const en = [], hi = [];
+  if (p.boxes) { en.push(`${p.boxes} ${s_(p.boxes, "box", "boxes")} (${FILLED_PER_BOX} filled + ${EMPTY_PER_BOX} empty trays each)`); hi.push(`${p.boxes} ${p.boxes === 1 ? "डिब्बा" : "डिब्बे"} (हर एक में ${FILLED_PER_BOX} भरी + ${EMPTY_PER_BOX} खाली ट्रे)`); }
+  if (p.looseTrays) { en.push(`${p.looseTrays} loose ${s_(p.looseTrays, "tray", "trays")}`); hi.push(`${p.looseTrays} खुली ट्रे`); }
+  if (p.looseEggs) { en.push(`${p.looseEggs} ${s_(p.looseEggs, "egg", "eggs")} left`); hi.push(`${p.looseEggs} अंडे बाकी`); }
+  return en.length ? { en: en.join(" + "), hi: hi.join(" + ") } : { en: "no full tray yet", hi: "अभी एक भी पूरी ट्रे नहीं" };
+}
 export const RAW_DEFAULT = [
   { id: "r1", name: "Maize / Corn", unit: "kg" }, { id: "r2", name: "Corn Seeds", unit: "kg" }, { id: "r3", name: "Soybean Meal", unit: "kg" }, { id: "r4", name: "Rice Bran", unit: "kg" },
   { id: "r5", name: "Wheat Bran", unit: "kg" }, { id: "r6", name: "Calcium (Limestone / Grit)", unit: "kg" }, { id: "r7", name: "DCP (Phosphorus)", unit: "kg" }, { id: "r8", name: "Mineral Mix", unit: "kg" },
@@ -60,7 +80,6 @@ export function useFarmData() {
   const [exp, setExp] = useLS("kf_exp", []);
   const [boxes, setBoxes] = useLS("kf_boxes", []);
   const [boxAdj, setBoxAdj] = useLS("kf_boxadj", []);
-  const [boxCfg, setBoxCfg] = useLS("kf_boxcfg", { perBox: PER_BOX, alert: 20 });
   const [raw, setRaw] = useLS("kf_raw", RAW_DEFAULT);
   const [rawBuy, setRawBuy] = useLS("kf_rawbuy", []);
   const [mix, setMix] = useLS("kf_mix", []);
@@ -74,7 +93,7 @@ export function useFarmData() {
   const [notif, setNotif] = useLS("kf_notif", NOTIF_DEFAULT);
   const [tasks, setTasks] = useLS("kf_tasks", []);
   const [docs, setDocs] = useLS("kf_docs", []);
-  return { farms, setFarms, batches, setBatches, logs, setLogs, feed, setFeed, types, setTypes, adj, setAdj, exp, setExp, boxes, setBoxes, boxAdj, setBoxAdj, boxCfg, setBoxCfg,
+  return { farms, setFarms, batches, setBatches, logs, setLogs, feed, setFeed, types, setTypes, adj, setAdj, exp, setExp, boxes, setBoxes, boxAdj, setBoxAdj,
     raw, setRaw, rawBuy, setRawBuy, mix, setMix, recipes, setRecipes, trays, setTrays, trayAdj, setTrayAdj, staff, setStaff, sup, setSup, cust, setCust, cf, setCf, notif, setNotif, tasks, setTasks, docs, setDocs };
 }
 export function useAnalysis(orders, txns, batchId = "", farmId = "") {
@@ -110,12 +129,24 @@ export function batchStats(b, D) {
     eggs: sum(L, (l) => l.eggs), feedKg: sum(L, (l) => l.feedKg), laying: age >= LAY_AGE };
 }
 
+/* simple things to try when hens lay fewer eggs (shown next to the low laying warning) */
+export function layingAdvice({ gPerBird = 0, ageWeeks = 0, mortPct = 0 }) {
+  const out = [];
+  if (gPerBird > 0 && gPerBird < 105) out.push(b(`Each bird eats only about ${Math.round(gPerBird)} g a day. Layers need 110 to 120 g. Give a little more feed.`, `हर मुर्गी रोज़ करीब ${Math.round(gPerBird)} ग्राम ही खा रही है। अंडे देने वाली मुर्गी को 110 से 120 ग्राम चाहिए। थोड़ा दाना बढ़ाएँ।`));
+  else out.push(b("Check the feed: it should be fresh and dry, with no mould, and have enough calcium (shell grit).", "दाना जाँचें: ताज़ा और सूखा हो, फफूँद न हो, और उसमें कैल्शियम (चूना/गिट्टी) काफी हो।"));
+  out.push(b("Give clean, cool water all day and wash the water tanks today.", "दिन भर साफ और ठंडा पानी दें और आज पानी की टंकी धोएँ।"));
+  if (ageWeeks > 72) out.push(b(`This flock is ${Math.round(ageWeeks)} weeks old. Old hens lay less, so plan to bring a new flock.`, `यह झुंड ${Math.round(ageWeeks)} हफ्ते का है। पुरानी मुर्गियाँ कम अंडे देती हैं, इसलिए नया झुंड लाने की योजना बनाएँ।`));
+  else if (mortPct > 8) out.push(b("Many birds have died. Call your vet and check the vaccination dates.", "बहुत मुर्गियाँ मर चुकी हैं। डॉक्टर को बुलाएँ और टीके की तारीखें देखें।"));
+  else out.push(b("Give 16 hours of light a day, keep the shed cool in hot weather, and call the vet if birds look dull.", "रोज़ 16 घंटे रोशनी दें, गर्मी में शेड ठंडा रखें, और मुर्गियाँ सुस्त दिखें तो डॉक्टर को बुलाएँ।"));
+  return out.slice(0, 3);
+}
+
 /* ---------- the main analysis (optionally for one farm and/or one batch) ---------- */
 export function analyze(D, batchId = "", farmId = "") {
-  const { farms = [], batches, logs, types, adj, orders, txns, exp = [], boxes = [], boxAdj = [], boxCfg = {}, trays = [], trayAdj = [], rawBuy = [], mix = [], notif = {} } = D;
+  const { farms = [], batches, logs, types, adj, orders, txns, exp = [], boxes = [], boxAdj = [], trays = [], trayAdj = [], rawBuy = [], mix = [], notif = {} } = D;
   const feed = [...D.feed, ...mix.map((m) => ({ id: m.id, date: m.date, farmId: m.farmId, batchId: m.batchId, feedType: m.feedType, kg: m.kg, cost: m.cost, made: true }))];
-  const perBox = +boxCfg.perBox || PER_BOX;
-  const lowFeedDays = +notif.feedDays || 7, lowTrays = notif.trayLow ?? 20, lowBoxes = notif.boxLow ?? boxCfg.alert ?? 20, lowEmpty = notif.emptyTrayLow ?? 100;
+  const perBox = PER_BOX; // fixed packing rule: 7 filled trays (+ 2 empty) in a box
+  const lowFeedDays = +notif.feedDays || 7, lowTrays = notif.trayLow ?? 20, lowBoxes = notif.boxLow ?? 20, lowEmpty = notif.emptyTrayLow ?? 100;
   const today = nowYmd();
   const bOf = Object.fromEntries(batches.map((b) => [b.id, b]));
   const effFarm = farmId || (batchId ? bOf[batchId]?.farmId || "" : "");
@@ -146,7 +177,7 @@ export function analyze(D, batchId = "", farmId = "") {
   const chickD = by(fb, (b) => b.date, (b) => (+b.count || 0) * (+b.chickCost || 0)), buyD = by(feedBought, (f) => f.date, (f) => f.cost), expD = by(expS, (e) => e.date, (e) => e.amount), rawD = by(rawS, (x) => x.date, (x) => x.cost);
   const boxBuyD = by(boxS, (x) => x.date, (x) => x.cost), trayBuyD = by(trayS, (x) => x.date, (x) => x.cost);
   const boxQD = by(boxes, (x) => x.date, (x) => x.qty), boxAdjD = by(boxAdj, (x) => x.date, (x) => x.qty), trayQD = by(trays, (x) => x.date, (x) => x.qty), trayAdjD = by(trayAdj, (x) => x.date, (x) => x.qty);
-  const boxUsedD = by(live, (o) => o.date, (o) => Math.ceil(eggsOfOrder(o) / TRAY / perBox)), trayUsedD = by(live, (o) => o.date, (o) => Math.ceil(eggsOfOrder(o) / TRAY));
+  const boxUsedD = by(live, (o) => o.date, (o) => orderPack(eggsOfOrder(o)).boxes), trayUsedD = by(live, (o) => o.date, (o) => orderPack(eggsOfOrder(o)).traysUsed); // each box also takes 2 empty protection trays
   const mExp = by(manual("expense"), (t) => t.date, (t) => t.amount), mRev = by(manual("revenue"), (t) => t.date, (t) => t.amount), mLoss = by(manual("loss"), (t) => t.date, (t) => t.amount);
   let stock = 0, boxStock = 0, trayStock = 0, cumDied = 0, cumBought = 0; const alive = {};
   const rows = dates.map((date) => {
@@ -203,16 +234,25 @@ export function analyze(D, batchId = "", farmId = "") {
       eggsToday: sum(L.filter((l) => l.date === today), (l) => l.eggs), feedKg: sum(L, (l) => l.feedKg), feedLeft: Math.max(0, sum(feed.filter((x) => x.farmId === f.id), (x) => x.kg) - sum(L, (l) => l.feedKg)), lastLog: lastDay,
       expense: sum(bs, (b) => (+b.count || 0) * (+b.chickCost || 0)) + sum(feed.filter((x) => x.farmId === f.id && !x.made), (x) => x.cost) + sum(rawBuy.filter((e) => e.farmId === f.id), (e) => e.cost) + sum(exp.filter((e) => e.farmId === f.id), (e) => e.amount) };
   });
+  const pk = packEggs(tot.stockEggs); // eggs in stock as boxes, trays and leftover eggs
+  Object.assign(tot, { pack: pk, stockBoxes: pk.boxes, stockLooseTrays: pk.looseTrays, stockLooseEggs: pk.looseEggs, boxesToPack: pk.boxesToPack, trayNeedToPack: pk.trays + pk.boxesToPack * EMPTY_PER_BOX });
+  const ageWeeks = fb.length ? Math.max(...fb.map((x) => (Date.now() - new Date(x.date).getTime()) / 864e5 + (+x.ageDays || 0))) / 7 : 0;
+  tot.layAdvice = layingAdvice({ gPerBird: tot.gPerBird7, ageWeeks, mortPct: tot.mortPct });
   const alerts = [];
-  if (tot.daysLeft !== null && tot.daysLeft < lowFeedDays) alerts.push({ level: "bad", text: `Feed is running low: about ${r1(tot.daysLeft)} days left (${Math.round(tot.feedLeft)} kg).` });
-  if (global && batches.length && tot.stockTrays < lowTrays) alerts.push({ level: "warn", text: `Only ${tot.stockTrays} trays of eggs in stock.` });
-  if (global && (boxes.length || boxAdj.length) && tot.boxStock < lowBoxes) alerts.push({ level: "warn", text: `Only ${tot.boxStock} empty boxes left for packing.` });
-  if (global && (trays.length || trayAdj.length) && tot.trayEmpty < lowEmpty) alerts.push({ level: "warn", text: `Only ${tot.trayEmpty} empty trays left.` });
+  const al = (level, en, hi, advice = []) => alerts.push({ level, text: en, hi, advice });
+  const plural = (n, one, many) => (n === 1 ? one : many);
+  if (tot.daysLeft !== null && tot.daysLeft < lowFeedDays) al("bad", `Feed is running low: about ${r1(tot.daysLeft)} days left (${Math.round(tot.feedLeft)} kg).`, `दाना कम पड़ रहा है: करीब ${r1(tot.daysLeft)} दिन का बचा है (${Math.round(tot.feedLeft)} किलो)।`, [b("Order ready feed or mix new feed today so the hens never go hungry.", "आज ही तैयार दाना मँगवाएँ या नया दाना बनाएँ, ताकि मुर्गियाँ भूखी न रहें।")]);
+  if (global && batches.length && tot.stockTrays < lowTrays) al("warn", `Only ${tot.stockTrays} trays of eggs in stock.`, `स्टॉक में सिर्फ ${tot.stockTrays} ट्रे अंडे हैं।`);
+  if (global && (boxes.length || boxAdj.length) && tot.boxStock < lowBoxes) al("warn", `Only ${tot.boxStock} empty boxes left for packing.`, `पैकिंग के लिए सिर्फ ${tot.boxStock} खाली डिब्बे बचे हैं।`, [b("Buy empty boxes before the next delivery.", "अगली डिलीवरी से पहले खाली डिब्बे खरीद लें।")]);
+  if (global && (trays.length || trayAdj.length) && tot.trayEmpty < lowEmpty) al("warn", `Only ${tot.trayEmpty} empty trays left.`, `सिर्फ ${tot.trayEmpty} खाली ट्रे बची हैं।`, [b("Buy empty trays soon. Every box also needs 2 empty trays for protection.", "जल्दी खाली ट्रे खरीदें। हर डिब्बे में सुरक्षा के लिए 2 खाली ट्रे भी लगती हैं।")]);
+  if (global && (trays.length || trayAdj.length || boxes.length || boxAdj.length) && pk.trays > 0 && (tot.trayEmpty < tot.trayNeedToPack || tot.boxStock < pk.boxesToPack))
+    al("warn", `Packing material is short for the eggs in stock: you need ${pk.boxesToPack} ${plural(pk.boxesToPack, "box", "boxes")} and ${tot.trayNeedToPack} trays (${pk.trays} for eggs + ${pk.boxesToPack * EMPTY_PER_BOX} for box protection) but have ${tot.boxStock} boxes and ${tot.trayEmpty} trays.`,
+      `स्टॉक के अंडों की पैकिंग के लिए सामान कम है: ${pk.boxesToPack} डिब्बे और ${tot.trayNeedToPack} ट्रे चाहिए (${pk.trays} अंडों के लिए + ${pk.boxesToPack * EMPTY_PER_BOX} डिब्बे की सुरक्षा के लिए), पर ${tot.boxStock} डिब्बे और ${tot.trayEmpty} ट्रे हैं।`, [b("Buy the missing trays and boxes under Purchases.", "कम पड़ रही ट्रे और डिब्बे Purchases में जाकर खरीदें।")]);
   const avgDeaths = sum(rows.slice(-8, -1), (r) => r.deaths) / 7;
-  if (notif.mortality !== false && (last.deaths || 0) >= Math.max(3, avgDeaths * 3)) alerts.push({ level: "bad", text: `More birds died today than usual: ${last.deaths} (normal is about ${r1(avgDeaths)} a day).` });
-  if (tot.hdp7 !== null && tot.hdp7 < 70) alerts.push({ level: "warn", text: `Egg laying is low this week: ${r1(tot.hdp7)}% of hens laid an egg per day.` });
+  if (notif.mortality !== false && (last.deaths || 0) >= Math.max(3, avgDeaths * 3)) al("bad", `More birds died today than usual: ${last.deaths} (normal is about ${r1(avgDeaths)} a day).`, `आज रोज़ से ज़्यादा मुर्गियाँ मरीं: ${last.deaths} (आम तौर पर रोज़ करीब ${r1(avgDeaths)})।`, [b("Check water, heat and any sick birds. Keep sick birds apart and call your vet if it continues.", "पानी, गर्मी और बीमार मुर्गियों को देखें। बीमार मुर्गियों को अलग रखें और अगर ऐसा चलता रहे तो डॉक्टर को बुलाएँ।")]);
+  if (tot.hdp7 !== null && tot.hdp7 < 70) al("warn", `Egg laying is low this week: ${r1(tot.hdp7)}% of hens laid an egg per day.`, `इस हफ्ते अंडे कम आ रहे हैं: रोज़ सिर्फ ${r1(tot.hdp7)}% मुर्गियों ने अंडा दिया।`, tot.layAdvice);
   const pend = orders.filter((o) => o.status === "Pending").length;
-  if (global && pend) alerts.push({ level: "info", text: `${pend} online order${pend > 1 ? "s" : ""} waiting for your OK.` });
+  if (global && pend) al("info", `${pend} online ${plural(pend, "order", "orders")} waiting for your OK.`, `${pend} ऑनलाइन ऑर्डर आपकी मंज़ूरी का इंतज़ार कर रहे हैं।`);
   return { rows, tot, alerts, feedByType, feedTable, expBreak, buyers, statusCount, batches, farms, farmStats, perBatch: batches.map((b) => ({ b, ...batchStats(b, D) })) };
 }
 
@@ -285,8 +325,8 @@ export function seedDemo(withDemoUser = true) {
 const txns = []; const tx = (i, type, category, amount, note = "") => txns.push({ id: uid(), date: ago(i), type, category, amount, note });
   for (let i = 188; i >= 0; i -= 30) tx(i, "revenue", "Manure sale", 5000, "Droppings sold to farmers");
   tx(95, "loss", "Feed spoiled by rain", 2400); tx(40, "loss", "Damaged egg trays", 900);
-  const boxes = [[62, 150], [30, 150], [8, 100]].map(([i, qty]) => ({ id: uid(), date: ago(i), farmId: "f1", batchId: "b1", qty, cost: qty * 55, supplier: "Pack & Ship" }));
-  const trays = [[60, 800], [20, 700]].map(([i, qty]) => ({ id: uid(), date: ago(i), farmId: "f1", batchId: "b1", qty, cost: qty * 7, supplier: "Pack & Ship" }));
+  const boxes = [[62, 300], [30, 300], [8, 200]].map(([i, qty]) => ({ id: uid(), date: ago(i), farmId: "f1", batchId: "b1", qty, cost: qty * 55, supplier: "Pack & Ship" }));
+  const trays = [[60, 2500], [20, 2500]].map(([i, qty]) => ({ id: uid(), date: ago(i), farmId: "f1", batchId: "b1", qty, cost: qty * 7, supplier: "Pack & Ship" }));
   const rawBuy = [], mixes = []; const rb = (i, itemId, qty, price) => rawBuy.push({ id: uid(), date: ago(i), farmId: "f1", batchId: "b1", itemId, qty, cost: Math.round(qty * price), supplier: "Local mandi" });
   rb(40, "r1", 3000, 24); rb(40, "r3", 1200, 48); rb(40, "r4", 800, 16); rb(40, "r6", 600, 9); rb(40, "r7", 60, 38); rb(40, "r8", 20, 90); rb(40, "r9", 8, 400); rb(40, "r10", 20, 8);
   rb(10, "r1", 2000, 25); rb(10, "r3", 800, 47);

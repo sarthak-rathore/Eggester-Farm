@@ -394,3 +394,20 @@ h3.ih .lucide{color:var(--green)}
 .seg button,.chips button,.tabs button,.pnav button,.tile,.farmcard,.btn{font-family:inherit}
 
 button,input,select,textarea{font-family:inherit}
+
+/* ---- priority card, advice, packing summary, language toggle ---- */
+.tile .ttl{display:contents}
+.prio{border:2px solid #E9CE7A;background:#FFFBEA}.prio.clear{border-color:#3E8E6B;background:#EAF7EF}
+.prio h3{margin:0 0 10px}.prio ol{list-style:none;margin:0;padding:0;display:grid;gap:10px}
+.prio li{display:flex;align-items:center;gap:12px;flex-wrap:wrap;background:#fff;border:1px solid var(--line);border-left:5px solid #E9B949;border-radius:12px;padding:10px 12px}
+.prio li.bad{border-left-color:var(--comb)}.prio li.info{border-left-color:#2F6FDE}
+.prio .pnum{flex:none;width:30px;height:30px;border-radius:50%;background:var(--green);color:var(--yolk);display:grid;place-items:center;font-weight:800}
+.prio .ptext{flex:1;min-width:200px;display:grid;gap:2px}.prio .ptext em{font-style:normal;font-size:.78rem;font-weight:700;color:#A02025}
+.advice{margin:6px 0 0;padding-left:1.2em;font-weight:500;font-size:.88rem;display:grid;gap:3px}
+.advicebox{background:#FFF1C2;border-color:#E9CE7A}.advicebox h3{margin:0 0 4px}
+.packbox{grid-column:1/-1;background:#F1F8F3;border:1px dashed #3E8E6B;border-radius:10px;padding:8px 12px}.packbox p{margin:.25em 0}
+.langtoggle{display:inline-flex;border:1.5px solid var(--green);border-radius:99px;overflow:hidden;background:#fff}
+.langtoggle button{border:0;background:transparent;padding:.35em .9em;font:700 .8rem Figtree,sans-serif;cursor:pointer;color:var(--green)}
+.langtoggle button.on{background:var(--green);color:#fff}
+.langtoggle.light{border-color:rgba(255,255,255,.7);background:transparent}.langtoggle.light button{color:#fff}.langtoggle.light button.on{background:var(--yolk);color:var(--ink)}
+.login .langtoggle{justify-self:center}

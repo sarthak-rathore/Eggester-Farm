@@ -2,7 +2,10 @@ import React, { useState, useMemo } from "react";
 import { ComposedChart, Bar, Line, XAxis, YAxis, Tooltip, Legend, CartesianGrid, BarChart } from "recharts";
 import { useFarmData, useAnalysis, ledger, TRAY, EXP_CATS } from "./farm.js";
 import { inr, today } from "./store.js";
-import { COL, ChartCard, Kpi, Alerts, nf, RangeFilter, rangeOf, inRange } from "./charts.jsx";
+import { COL, ChartCard, Kpi, Alerts, nf, Pack, RangeFilter, rangeOf, inRange } from "./charts.jsx";
+import { Bi } from "./i18n.jsx";
+import PriorityActions from "./Priority.jsx";
+import { lossReason, byCategory, rawKgOf } from "./insights.js";
 import { kgText } from "./units.js";
 import { Ia } from "./adminIcons.jsx";
 const sum = (a, f) => a.reduce((x, y) => x + (+f(y) || 0), 0);
@@ -22,6 +25,7 @@ export default function Overview({ d }) {
   const prodSales = prod ? orders.reduce((a, o) => { (o.items || []).filter((i) => i.id === prod).forEach((i) => { a.trays += (i.qty * (i.eggs || TRAY)) / TRAY; a.money += i.qty * i.price; }); return a; }, { trays: 0, money: 0 }) : null;
   const trays = prodSales ? prodSales.trays : sum(rows, (x) => x.sold) / TRAY, money = prodSales ? prodSales.money : sum(rows, (x) => x.revenue);
   const profit = sum(rows, (x) => x.revenue) - (L.length ? expAll : sum(rows, (x) => x.expense)) - sum(rows, (x) => x.manLoss);
+  const why = profit < 0 ? lossReason({ revenue: sum(rows, (x) => x.revenue), expense: L.length ? expAll : sum(rows, (x) => x.expense), manLoss: sum(rows, (x) => x.manLoss), byCat: byCategory(L), feedKg: t.feedLeft, rawKg: rawKgOf(F, fid) }) : null;
   const eggs = sum(rows, (x) => x.eggs), good = sum(rows, (x) => x.good), died = sum(rows, (x) => x.deaths);
   const span = (new Date(r.to === "9999-99-99" ? today() : r.to) - new Date(r.from === "0000-00-00" ? rows[0]?.date || today() : r.from)) / 864e5;
   const key = (x) => (span > 92 ? x.date.slice(0, 7) : x.date.slice(5));
@@ -30,7 +34,7 @@ export default function Overview({ d }) {
   const pickYear = (y) => y && setRv({ preset: "custom", from: `${y}-01-01`, to: `${y}-12-31`, year: y });
   return (
     <>
-      <div className="bar"><h2>Overall Farm Overview <small className="hi">पूरे फार्म का हाल</small></h2></div>
+      <div className="bar"><h2>Overall Farm Overview</h2></div>
       <section className="card form grid2 filters"><h3 className="wide">Show me</h3>
         <label>Farm<select value={fid} onChange={(e) => { setFid(e.target.value); setBid(""); }}><option value="">All farms</option>{F.farms.map((f) => <option key={f.id} value={f.id}>{f.name}</option>)}</select></label>
         <label>Batch<select value={bid} onChange={(e) => setBid(e.target.value)}><option value="">All batches</option>{F.batches.filter((b) => !fid || b.farmId === fid).map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}</select></label>
@@ -39,17 +43,18 @@ export default function Overview({ d }) {
         <label>Egg type sold<select value={prod} onChange={(e) => setProd(e.target.value)}><option value="">All egg types</option>{d.products.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}</select></label>
         <div className="wide"><RangeFilter v={rv} set={(v) => setRv(v)} /></div></section>
       {scoped && <p className="muted">Online shop orders are shared by all farms, so they are counted in “All farms” and split by eggs produced in the money numbers.</p>}
+      <PriorityActions A={A} orders={d.orders} />
       <Alerts list={A.alerts} />
       <div className="kpis big">
         <Kpi l={<span className="ih"><Ia n="egg" s={16} /> Eggs collected</span>} v={nf(eggs)} hint={`${nf(good / TRAY, 1)} good trays`} />
         <Kpi l={<span className="ih"><Ia n="money" s={16} /> Sales</span>} v={inr(money)} t="good" hint={`${nf(trays, 1)} trays sold`} />
         <Kpi l={<span className="ih"><Ia n="receipt" s={16} /> Expenses</span>} v={inr(expShown)} hint={cat || "all kinds"} />
-        <Kpi l={<span className="ih"><Ia n={profit >= 0 ? "trend" : "alert"} s={16} /> {profit >= 0 ? "Profit" : "Loss"}</span>} v={inr(Math.abs(profit))} t={profit >= 0 ? "good" : "bad"} hint="after all expenses" />
+        <Kpi l={<span className="ih"><Ia n={profit >= 0 ? "trend" : "alert"} s={16} /> {profit >= 0 ? "Profit" : "Loss"}</span>} v={inr(Math.abs(profit))} t={profit >= 0 ? "good" : "bad"} hint={why ? <Bi en={why.en} hi={why.hi} /> : "after all expenses"} />
         <Kpi l={<span className="ih"><Ia n="hen" s={16} /> Birds died</span>} v={nf(died)} t={died ? "bad" : "good"} hint={`${nf(t.mortPct, 1)}% of all birds bought`} />
       </div>
       <h3 className="sh">Stock now</h3>
       <div className="kpis">
-        <Kpi l="Eggs ready" v={nf(t.stockTrays) + " trays"} t={t.stockTrays < 20 ? "bad" : "good"} /><Kpi l="Birds alive" v={nf(t.alive)} t="good" /><Kpi l="Feed" v={kgText(t.feedLeft)} /><Kpi l="Empty trays" v={nf(t.trayEmpty)} /><Kpi l="Empty boxes" v={nf(t.boxStock)} /><Kpi l="Money to receive" v={inr(t.owed)} t={t.owed ? "bad" : ""} />
+        <Kpi l="Eggs ready" v={nf(t.stockTrays) + " trays"} t={t.stockTrays < 20 ? "bad" : "good"} hint={<Pack eggs={t.stockEggs} />} /><Kpi l="Birds alive" v={nf(t.alive)} t="good" /><Kpi l="Feed" v={kgText(t.feedLeft)} /><Kpi l="Empty trays" v={nf(t.trayEmpty)} /><Kpi l="Empty boxes" v={nf(t.boxStock)} /><Kpi l="Money to receive" v={inr(t.owed)} t={t.owed ? "bad" : ""} />
       </div>
       <div className="two">
         <ChartCard title="Money earned and spent"><ComposedChart data={series}>{G}<XAxis dataKey="k" tick={{ fontSize: 11 }} minTickGap={16} /><YAxis tick={{ fontSize: 11 }} width={50} /><Tooltip formatter={(v) => inr(v)} /><Legend /><Bar dataKey="earned" name="Earned" fill={COL.green} radius={[4, 4, 0, 0]} /><Bar dataKey="spent" name="Spent" fill={COL.yolk} radius={[4, 4, 0, 0]} /></ComposedChart></ChartCard>
